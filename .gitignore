@@ -1,0 +1,11 @@
+node_modules
+.next
+out
+.env
+.env.local
+dist
+*.tsbuildinfo
+*.log
+.tmp-downloads
+tmp_*.txt
+next-dev.*.log

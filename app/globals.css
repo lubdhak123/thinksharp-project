@@ -1,0 +1,152 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --brand: #E4272B;        /* primary — matches their site's red exactly */
+  --brand-light: #FDEAEA;  /* light red tint for card backgrounds */
+  --ink: #1A1A1A;          /* near-black, matches logo text weight */
+  --mist: #6B6B6B;         /* secondary/muted text */
+  --paper: #FAFAFA;        /* page background */
+  --border: #E5E5E5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  background-color: var(--paper);
+  color: var(--ink);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+/* Custom form control focus and style overrides to match brand aesthetic */
+input:focus, select:focus, textarea:focus {
+  outline: none !important;
+  border-color: var(--brand) !important;
+  box-shadow: 0 0 0 1px var(--brand) !important;
+}
+
+/* Ledger paper lines background decoration helper if needed */
+.ledger-dotted {
+  background-image: radial-gradient(var(--border) 1px, transparent 0);
+  background-size: 16px 16px;
+}
+
+@keyframes ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-ticker {
+  animation: ticker-scroll 45s linear infinite;
+}
+
+@keyframes live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+}
+
+.animate-live-pulse {
+  animation: live-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes hero-drift {
+  0%,
+  100% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+}
+
+.animate-hero-drift {
+  animation: hero-drift 18s ease-in-out infinite;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* ─── Animation system ─────────────────────────────────── */
+
+/* Fade + slide up entrance */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s ease-out both;
+}
+
+/* Stagger helpers — apply delay via style or class */
+.stagger-1 { animation-delay: 0ms; }
+.stagger-2 { animation-delay: 60ms; }
+.stagger-3 { animation-delay: 120ms; }
+.stagger-4 { animation-delay: 180ms; }
+.stagger-5 { animation-delay: 240ms; }
+.stagger-6 { animation-delay: 300ms; }
+.stagger-7 { animation-delay: 360ms; }
+.stagger-8 { animation-delay: 420ms; }
+
+/* Crossfade for tab content */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fadeIn 0.18s ease-out both;
+}
+
+/* Live pulse dot */
+@keyframes livePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.75); }
+}
+.live-dot {
+  animation: livePulse 1.4s ease-in-out infinite;
+}
+
+/* Number refresh flash */
+@keyframes numFlash {
+  0%   { background-color: transparent; }
+  30%  { background-color: var(--brand-light); }
+  100% { background-color: transparent; }
+}
+.num-flash {
+  animation: numFlash 0.7s ease-out both;
+}
+
+/* Progress bar grow */
+@keyframes barGrow {
+  from { width: 0%; }
+}
+/* Applied inline via animation shorthand on the bar div */
+
+/* Button press micro-interaction */
+.btn-press:active {
+  transform: scale(0.96);
+}
