@@ -19,6 +19,12 @@ export function PersonalDashboardClient({ user, role }: PersonalDashboardClientP
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Filters and sorting state for My Activities log
+  const [search, setSearch] = useState("");
+  const [projectFilter, setProjectFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [sortBy, setSortBy] = useState("newest"); // newest | oldest | hours
+
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -45,18 +51,20 @@ export function PersonalDashboardClient({ user, role }: PersonalDashboardClientP
   const displayName = member?.name || user.name || titleCase(user.email.split("@")[0] || "there");
   const roleLabel = role === "intern" ? "Intern" : "Volunteer";
 
+  // KPIs exclude rejected logs
   const stats = useMemo(() => {
-    const myHours = activities.reduce((total, activity) => total + getTotalHours(activity), 0);
-    const beneficiaries = activities.reduce((total, activity) => total + Number(activity.beneficiaries_impacted ?? 0), 0);
+    const activeLogs = activities.filter((activity) => activity.status !== "Rejected");
+    const myHours = activeLogs.reduce((total, activity) => total + getTotalHours(activity), 0);
+    const beneficiaries = activeLogs.reduce((total, activity) => total + Number(activity.beneficiaries_impacted ?? 0), 0);
     const projects = new Set(
-      activities
+      activeLogs
         .map((activity) => activity.milestone || activity.programme_name || activity.project_type || activity.intern_work_type)
         .filter(Boolean)
     ).size;
 
     return {
       myHours,
-      myActivities: activities.length,
+      myActivities: activeLogs.length,
       myBeneficiaries: beneficiaries,
       myProjects: projects,
     };
@@ -65,6 +73,58 @@ export function PersonalDashboardClient({ user, role }: PersonalDashboardClientP
   const startDate = member?.start_date || earliestDate(activities);
   const expectedCompletionDate = member?.expected_end_date || latestExpectedDate(activities);
   const currentStatus = member?.status ?? "Active";
+
+  // Filtered and Sorted list for My Activities table
+  const filteredActivities = useMemo(() => {
+    let result = [...activities];
+
+    // 1. Search term
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (act) =>
+          (act.programme_name || "").toLowerCase().includes(q) ||
+          (act.milestone || "").toLowerCase().includes(q) ||
+          (act.project_type || "").toLowerCase().includes(q) ||
+          (act.intern_work_type || "").toLowerCase().includes(q)
+      );
+    }
+
+    // 2. Project type dropdown
+    if (projectFilter) {
+      result = result.filter(
+        (act) => act.project_type === projectFilter || act.intern_work_type === projectFilter
+      );
+    }
+
+    // 3. Status dropdown
+    if (statusFilter) {
+      result = result.filter((act) => {
+        const actStatus = act.status || "Approved";
+        return actStatus === statusFilter;
+      });
+    }
+
+    // 4. Sort By
+    if (sortBy === "newest") {
+      result.sort((a, b) => b.activity_date.localeCompare(a.activity_date));
+    } else if (sortBy === "oldest") {
+      result.sort((a, b) => a.activity_date.localeCompare(b.activity_date));
+    } else if (sortBy === "hours") {
+      result.sort((a, b) => getTotalHours(b) - getTotalHours(a));
+    }
+
+    return result;
+  }, [activities, search, projectFilter, statusFilter, sortBy]);
+
+  // Distinct projects mapped for filter options
+  const projectOptions = useMemo(() => {
+    return Array.from(
+      new Set(
+        activities.map((a) => a.project_type || a.intern_work_type).filter(Boolean)
+      )
+    ) as string[];
+  }, [activities]);
 
   return (
     <div className="grid gap-6">
@@ -148,20 +208,71 @@ export function PersonalDashboardClient({ user, role }: PersonalDashboardClientP
             <ProfileField label="Expected Completion Date" value={formatDate(expectedCompletionDate)} />
           </section>
 
+          {/* Activities History Section */}
           <section className="border border-border bg-white p-5">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-brand">My Activity Log</p>
-                <h2 className="mt-1 text-xl font-display font-bold text-ink">Recent submissions</h2>
+                <p className="text-xs font-bold uppercase tracking-widest text-brand">My Activities</p>
+                <h2 className="mt-1 text-xl font-display font-bold text-ink">Personal Contribution Log</h2>
               </div>
-              <p className="text-sm font-semibold text-mist">{activities.length.toLocaleString("en-IN")} records</p>
+              <p className="text-sm font-semibold text-mist">{filteredActivities.length.toLocaleString("en-IN")} records</p>
             </div>
 
-            {activities.length === 0 ? (
+            {/* Filter toolbar */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 border border-border p-4 bg-paper/30 mb-4 text-xs font-display">
+              <label className="grid gap-1">
+                <span className="font-bold text-mist uppercase tracking-wide">Search Activity</span>
+                <input
+                  className="h-8 border border-border bg-white px-2 focus:outline-brand focus:border-brand"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search project/milestone"
+                />
+              </label>
+              <label className="grid gap-1">
+                <span className="font-bold text-mist uppercase tracking-wide">Project / Work</span>
+                <select
+                  className="h-8 border border-border bg-white px-2 focus:outline-brand focus:border-brand"
+                  value={projectFilter}
+                  onChange={(e) => setProjectFilter(e.target.value)}
+                >
+                  <option value="">All</option>
+                  {projectOptions.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-1">
+                <span className="font-bold text-mist uppercase tracking-wide">Status</span>
+                <select
+                  className="h-8 border border-border bg-white px-2 focus:outline-brand focus:border-brand"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option value="">All</option>
+                  <option value="Submitted">Submitted</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+              </label>
+              <label className="grid gap-1">
+                <span className="font-bold text-mist uppercase tracking-wide">Sort By</span>
+                <select
+                  className="h-8 border border-border bg-white px-2 focus:outline-brand focus:border-brand"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                >
+                  <option value="newest">Newest First</option>
+                  <option value="oldest">Oldest First</option>
+                  <option value="hours">Hours (Highest)</option>
+                </select>
+              </label>
+            </div>
+
+            {filteredActivities.length === 0 ? (
               <div className="grid gap-3 border border-dashed border-border bg-paper p-6 text-center">
                 <CalendarCheck className="mx-auto text-brand" size={28} />
-                <p className="font-display text-sm font-bold text-ink">No activity reports found for your profile yet.</p>
-                <p className="text-sm text-mist">Submit your first activity to start building your contribution summary.</p>
+                <p className="font-display text-sm font-bold text-ink">No matching activity reports found.</p>
               </div>
             ) : (
               <div className="overflow-auto">
@@ -169,22 +280,32 @@ export function PersonalDashboardClient({ user, role }: PersonalDashboardClientP
                   <thead>
                     <tr className="border-b border-border bg-paper/70 text-[11px] uppercase tracking-wider text-mist">
                       <th className="p-3">Date</th>
-                      <th className="p-3">Programme</th>
-                      <th className="p-3">Type</th>
+                      <th className="p-3">Activity</th>
                       <th className="p-3">Hours</th>
                       <th className="p-3">Beneficiaries</th>
+                      <th className="p-3">Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {activities.slice(0, 8).map((activity) => (
-                      <tr key={activity.id} className="border-b border-border last:border-0">
-                        <td className="p-3 font-semibold text-ink">{formatDate(activity.activity_date)}</td>
-                        <td className="p-3">{activity.programme_name || activity.milestone || "-"}</td>
-                        <td className="p-3">{activity.project_type || activity.intern_work_type || "-"}</td>
-                        <td className="p-3">{getTotalHours(activity).toLocaleString("en-IN")}</td>
-                        <td className="p-3">{Number(activity.beneficiaries_impacted ?? 0).toLocaleString("en-IN")}</td>
-                      </tr>
-                    ))}
+                    {filteredActivities.map((activity) => {
+                      const actStatus = activity.status || "Approved";
+                      return (
+                        <tr key={activity.id} className="border-b border-border last:border-0 hover:bg-paper/25 transition-colors">
+                          <td className="p-3 font-semibold text-ink">{formatDate(activity.activity_date)}</td>
+                          <td className="p-3">
+                            <div className="font-bold text-ink">
+                              {activity.programme_name || activity.milestone || "-"}
+                            </div>
+                            <div className="text-xs text-mist">
+                              {activity.project_type || activity.intern_work_type || "-"}
+                            </div>
+                          </td>
+                          <td className="p-3 font-bold text-ink">{getTotalHours(activity).toLocaleString("en-IN")}</td>
+                          <td className="p-3">{Number(activity.beneficiaries_impacted ?? 0).toLocaleString("en-IN")}</td>
+                          <td className="p-3"><ActivityStatusBadge status={actStatus} /></td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -212,6 +333,24 @@ function ProfileField({ label, value }: { label: string; value: string }) {
       <p className="text-[11px] font-bold uppercase tracking-wider text-mist">{label}</p>
       <p className="mt-2 text-lg font-bold text-ink">{value}</p>
     </article>
+  );
+}
+
+function ActivityStatusBadge({ status }: { status: string }) {
+  const styles: Record<string, string> = {
+    Approved: "bg-[#e9f7ef] text-[#167241]",
+    Submitted: "bg-[#fff7e8] text-[#9a6500]",
+    Rejected: "bg-red-50 text-red-700 border border-red-100",
+  };
+
+  return (
+    <span
+      className={`inline-block px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${
+        styles[status] ?? "bg-paper text-mist"
+      }`}
+    >
+      {status}
+    </span>
   );
 }
 

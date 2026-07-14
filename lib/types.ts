@@ -45,6 +45,7 @@ export type Activity = {
 
   // Staff In-Charge
   staff_in_charge: string | null;
+  status?: "Submitted" | "Approved" | "Rejected";
 };
 
 
