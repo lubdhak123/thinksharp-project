@@ -23,6 +23,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useCountUp } from "@/hooks/useCountUp";
+import { ProgrammeModal } from "@/components/ProgrammeModal";
 
 const tickerItems = [
   "🟢 LIVE · Riya Menon logged Dashboard Development work in Pune · 2 min ago",
@@ -114,6 +115,7 @@ export default function HomePage() {
   const router = useRouter();
   const [processingInvite, setProcessingInvite] = useState(false);
   const [inviteError, setInviteError] = useState("");
+  const [selectedProgramme, setSelectedProgramme] = useState<"Classroom sessions" | "Computer & STEM labs" | "Plantation drives" | null>(null);
 
   // Live count-up states for Hero
   const countBeneficiaries = useCountUp(12480, 1000);
@@ -503,12 +505,13 @@ export default function HomePage() {
                     <p className="mt-2 text-xs text-mist leading-relaxed">{photo.desc}</p>
                   </div>
                   <div className="mt-5 border-t border-border pt-4">
-                    <Link
-                      href="/volunteer-apply"
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-brand uppercase tracking-wider group-hover:translate-x-1.5 transition-transform"
+                    <button
+                      type="button"
+                      onClick={() => setSelectedProgramme(photo.tag as any)}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-brand uppercase tracking-wider group-hover:translate-x-1.5 transition-transform outline-none focus:outline-none"
                     >
                       Learn More <ArrowRight size={14} />
-                    </Link>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -755,6 +758,12 @@ export default function HomePage() {
           <p className="text-xs text-mist">Internal impact dashboard - 2026 ThinkSharp Foundation</p>
         </div>
       </footer>
+      {selectedProgramme && (
+        <ProgrammeModal
+          programme={selectedProgramme}
+          onClose={() => setSelectedProgramme(null)}
+        />
+      )}
     </main>
   );
 }
