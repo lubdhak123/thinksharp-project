@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Inter, Poppins } from "next/font/google";
 import { HeaderNav } from "@/components/HeaderNav";
 import { AuthProvider } from "@/hooks/useAuth";
+import { Footer } from "@/components/Footer";
 import "./globals.css";
 
 const inter = Inter({
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </header>
           {children}
+          <Footer />
         </AuthProvider>
       </body>
     </html>

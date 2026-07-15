@@ -747,17 +747,6 @@ export default function HomePage() {
         </div>
       </section>}
 
-      <footer className="border-t border-border bg-white">
-        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-5 py-10 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-2.5">
-            <span className="grid h-7 w-7 place-items-center rounded-md bg-brand text-xs font-bold text-white">
-              TF
-            </span>
-            <span className="font-bold text-ink">ThinkSharp Foundation</span>
-          </div>
-          <p className="text-xs text-mist">Internal impact dashboard - 2026 ThinkSharp Foundation</p>
-        </div>
-      </footer>
       {selectedProgramme && (
         <ProgrammeModal
           programme={selectedProgramme}
