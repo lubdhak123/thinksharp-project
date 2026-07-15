@@ -1,12 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { Briefcase, CalendarCheck, CheckCircle2, Clock3, FilePlus2, GraduationCap, UserRound } from "lucide-react";
+import { Briefcase, CalendarCheck, CheckCircle2, Clock3, GraduationCap, FilePlus2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchCurrentMember } from "@/lib/members";
 import { fetchActivities, getTotalHours } from "@/lib/queries";
 import type { UserRole, CurrentUser } from "@/hooks/useAuth";
 import type { Activity, Member } from "@/lib/types";
+
+// Modular Dashboard Components
+import WelcomeHero from "./dashboard/WelcomeHero";
+import ContributionProgress from "./dashboard/ContributionProgress";
+import MonthlyHoursChart from "./dashboard/MonthlyHoursChart";
+import ActivityDistributionChart from "./dashboard/ActivityDistributionChart";
+import BeneficiaryTrendChart from "./dashboard/BeneficiaryTrendChart";
+import AchievementGrid from "./dashboard/AchievementGrid";
+import RecentTimeline from "./dashboard/RecentTimeline";
+import ProfileSummaryCard from "./dashboard/ProfileSummaryCard";
 
 type PersonalDashboardClientProps = {
   user: CurrentUser;
@@ -18,12 +28,13 @@ export function PersonalDashboardClient({ user, role }: PersonalDashboardClientP
   const [member, setMember] = useState<Member | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showGuide, setShowGuide] = useState(false);
 
   // Filters and sorting state for My Activities log
   const [search, setSearch] = useState("");
   const [projectFilter, setProjectFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [sortBy, setSortBy] = useState("newest"); // newest | oldest | hours
+  const [sortBy, setSortBy] = useState("newest");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -36,6 +47,7 @@ export function PersonalDashboardClient({ user, role }: PersonalDashboardClientP
       ]);
 
       setMember(allApplications);
+      // Strictly scope activities to the authenticated member only to prevent data leakage
       setActivities(filterPersonalActivities(allActivities, user, role, allApplications));
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Could not load your dashboard.");
@@ -51,7 +63,7 @@ export function PersonalDashboardClient({ user, role }: PersonalDashboardClientP
   const displayName = member?.name || user.name || titleCase(user.email.split("@")[0] || "there");
   const roleLabel = role === "intern" ? "Intern" : "Volunteer";
 
-  // KPIs exclude rejected logs
+  // KPIs calculations scoped exclusively to active/submitted/approved records
   const stats = useMemo(() => {
     const activeLogs = activities.filter((activity) => activity.status !== "Rejected");
     const myHours = activeLogs.reduce((total, activity) => total + getTotalHours(activity), 0);
@@ -74,11 +86,10 @@ export function PersonalDashboardClient({ user, role }: PersonalDashboardClientP
   const expectedCompletionDate = member?.expected_end_date || latestExpectedDate(activities);
   const currentStatus = member?.status ?? "Active";
 
-  // Filtered and Sorted list for My Activities table
+  // Filtered and Sorted list for display in the table
   const filteredActivities = useMemo(() => {
     let result = [...activities];
 
-    // 1. Search term
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(
@@ -90,14 +101,12 @@ export function PersonalDashboardClient({ user, role }: PersonalDashboardClientP
       );
     }
 
-    // 2. Project type dropdown
     if (projectFilter) {
       result = result.filter(
         (act) => act.project_type === projectFilter || act.intern_work_type === projectFilter
       );
     }
 
-    // 3. Status dropdown
     if (statusFilter) {
       result = result.filter((act) => {
         const actStatus = act.status || "Approved";
@@ -105,7 +114,6 @@ export function PersonalDashboardClient({ user, role }: PersonalDashboardClientP
       });
     }
 
-    // 4. Sort By
     if (sortBy === "newest") {
       result.sort((a, b) => b.activity_date.localeCompare(a.activity_date));
     } else if (sortBy === "oldest") {
@@ -117,7 +125,6 @@ export function PersonalDashboardClient({ user, role }: PersonalDashboardClientP
     return result;
   }, [activities, search, projectFilter, statusFilter, sortBy]);
 
-  // Distinct projects mapped for filter options
   const projectOptions = useMemo(() => {
     return Array.from(
       new Set(
@@ -130,36 +137,21 @@ export function PersonalDashboardClient({ user, role }: PersonalDashboardClientP
     <div className="grid gap-6">
       {error && <div className="border border-clay bg-brand-light p-4 text-sm font-bold text-clay">{error}</div>}
 
-      <section className="border border-border bg-ink p-6 text-white sm:p-8">
-        <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-          <div className="font-display">
-            <p className="text-xs font-bold uppercase tracking-widest text-brand">Welcome,</p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Hi {displayName}</h1>
-            <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white/85">
-              <UserRound size={14} />
-              {roleLabel}
-            </div>
-          </div>
-
-          {currentStatus === "Active" && (
-            <Link
-              href="/submit"
-              className="inline-flex h-11 items-center justify-center gap-2 bg-brand px-5 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-white hover:text-ink"
-            >
-              <FilePlus2 size={16} />
-              Submit Activity
-            </Link>
-          )}
-        </div>
-      </section>
+      <WelcomeHero 
+        name={displayName} 
+        role={role} 
+        status={currentStatus} 
+        joinDate={formatDate(startDate)} 
+        tsfId={member?.user_id || "N/A"} 
+      />
 
       {loading ? (
         <div className="border border-border bg-white p-5 text-sm font-semibold text-mist">Loading your dashboard...</div>
       ) : (
         <>
-          {/* Certificate Download Banner */}
+          {/* Certificate Download Banner for Completed Members */}
           {currentStatus === "Completed" && (
-            <section className="border border-[#167241] bg-[#e9f7ef] p-6 text-[#167241] font-display flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+            <section className="border border-[#167241] bg-[#e9f7ef] p-6 text-[#167241] font-display flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm rounded-2xl">
               <div>
                 <h3 className="text-lg font-bold text-ink flex items-center gap-2">
                   <CheckCircle2 className="text-[#167241]" size={20} />
@@ -194,6 +186,7 @@ export function PersonalDashboardClient({ user, role }: PersonalDashboardClientP
             </section>
           )}
 
+          {/* Standard KPI Cards Grid */}
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <PersonalMetric label="My Hours" value={stats.myHours} icon={<Clock3 size={20} />} />
             <PersonalMetric label="My Activities" value={stats.myActivities} icon={<CheckCircle2 size={20} />} />
@@ -201,15 +194,39 @@ export function PersonalDashboardClient({ user, role }: PersonalDashboardClientP
             <PersonalMetric label="My Projects" value={stats.myProjects} icon={<Briefcase size={20} />} />
           </section>
 
-          <section className="grid gap-4 lg:grid-cols-4">
-            <ProfileField label="Current Status" value={currentStatus} />
-            <ProfileField label="Volunteer/Intern Type" value={roleLabel} />
-            <ProfileField label="Start Date" value={formatDate(startDate)} />
-            <ProfileField label="Expected Completion Date" value={formatDate(expectedCompletionDate)} />
-          </section>
+          {/* Main Visual Panels Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            {/* Charts & Timeline Column (col-span-8) */}
+            <div className="lg:col-span-8 flex flex-col gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <MonthlyHoursChart activities={activities} />
+                <BeneficiaryTrendChart activities={activities} />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <ActivityDistributionChart activities={activities} />
+                <RecentTimeline activities={activities} />
+              </div>
+            </div>
 
-          {/* Activities History Section */}
-          <section className="border border-border bg-white p-5">
+            {/* Sidebar Details Column (col-span-4) */}
+            <div className="lg:col-span-4 flex flex-col gap-6">
+              <ContributionProgress totalHours={stats.myHours} />
+              <ProfileSummaryCard 
+                tsfId={member?.user_id || "N/A"} 
+                role={role} 
+                status={currentStatus} 
+                startDate={startDate} 
+                expectedEndDate={expectedCompletionDate} 
+              />
+              <AchievementGrid stats={stats} activities={activities} />
+            </div>
+
+          </div>
+
+          {/* Activities History Section / Table */}
+          <section className="border border-border bg-white p-5 rounded-2xl">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-bold uppercase tracking-widest text-brand">My Activities</p>
@@ -269,8 +286,46 @@ export function PersonalDashboardClient({ user, role }: PersonalDashboardClientP
               </label>
             </div>
 
-            {filteredActivities.length === 0 ? (
-              <div className="grid gap-3 border border-dashed border-border bg-paper p-6 text-center">
+            {activities.length === 0 ? (
+              /* Custom dynamic onboarding empty state */
+              <div className="grid gap-3 border border-dashed border-border bg-white p-12 text-center rounded-2xl">
+                <span className="text-4xl" role="img" aria-label="rocket">🚀</span>
+                <h3 className="font-display text-base font-bold text-ink">Your volunteering journey starts here.</h3>
+                <p className="text-xs text-mist max-w-sm mx-auto">
+                  Submit your first activity to begin tracking your impact dashboard metrics and unlocking performance badges.
+                </p>
+                <div className="mt-4 flex flex-col items-center gap-2">
+                  {currentStatus === "Active" && (
+                    <Link
+                      href="/submit"
+                      className="inline-flex h-9 items-center justify-center bg-brand px-5 text-xs font-bold uppercase tracking-wider text-white hover:bg-ink transition-colors"
+                    >
+                      Submit Your First Activity
+                    </Link>
+                  )}
+                  <button 
+                    type="button"
+                    onClick={() => setShowGuide(!showGuide)}
+                    className="text-xs text-brand font-bold hover:underline"
+                  >
+                    {showGuide ? "Hide Reporting Guide" : "Learn how activity logging works"}
+                  </button>
+                </div>
+                
+                {showGuide && (
+                  <div className="mt-6 border-t border-border pt-4 text-left max-w-md mx-auto text-xs text-mist leading-relaxed bg-paper/50 p-4 rounded-lg">
+                    <p className="font-bold text-ink mb-1.5">How Logging Works:</p>
+                    <ul className="list-disc pl-4 grid gap-1 text-[11px]">
+                      <li>Volunteers record time spent teaching, cleanups, plantation drives, or corporate sessions.</li>
+                      <li>Interns log hours against AI projects, dashboard dev, surveys, or deliverables.</li>
+                      <li>Approved hours automatically update your progress track and unlock custom achievements.</li>
+                      <li>Once your tenure completes, you can download your custom landscape completion certificate directly.</li>
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ) : filteredActivities.length === 0 ? (
+              <div className="grid gap-3 border border-dashed border-border bg-paper p-6 text-center rounded-xl">
                 <CalendarCheck className="mx-auto text-brand" size={28} />
                 <p className="font-display text-sm font-bold text-ink">No matching activity reports found.</p>
               </div>
@@ -319,7 +374,7 @@ export function PersonalDashboardClient({ user, role }: PersonalDashboardClientP
 
 function PersonalMetric({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) {
   return (
-    <article className="border border-border bg-white p-5 font-display">
+    <article className="border border-border bg-white p-5 font-display rounded-2xl shadow-sm hover:shadow transition-shadow">
       <div className="flex items-center justify-between gap-3 text-brand">{icon}</div>
       <p className="mt-4 text-sm font-bold text-mist">{label}</p>
       <strong className="mt-1 block text-3xl font-black text-ink">{value.toLocaleString("en-IN")}</strong>
@@ -327,25 +382,16 @@ function PersonalMetric({ label, value, icon }: { label: string; value: number; 
   );
 }
 
-function ProfileField({ label, value }: { label: string; value: string }) {
-  return (
-    <article className="border border-border bg-white p-5 font-display">
-      <p className="text-[11px] font-bold uppercase tracking-wider text-mist">{label}</p>
-      <p className="mt-2 text-lg font-bold text-ink">{value}</p>
-    </article>
-  );
-}
-
 function ActivityStatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    Approved: "bg-[#e9f7ef] text-[#167241]",
-    Submitted: "bg-[#fff7e8] text-[#9a6500]",
-    Rejected: "bg-red-50 text-red-700 border border-red-100",
+    Approved: "bg-[#e9f7ef] text-[#167241] border-[#167241]/20",
+    Submitted: "bg-[#fff7e8] text-[#9a6500] border-[#9a6500]/20",
+    Rejected: "bg-red-50 text-red-700 border-red-100",
   };
 
   return (
     <span
-      className={`inline-block px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${
+      className={`inline-block border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full ${
         styles[status] ?? "bg-paper text-mist"
       }`}
     >
