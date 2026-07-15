@@ -403,27 +403,27 @@ export function ActivityForm({ repeatId }: { repeatId?: string }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-6 rounded-none border border-border bg-white p-6">
+    <form onSubmit={onSubmit} className="grid gap-6 max-w-full font-display">
       {!hasSupabaseConfig && (
-        <div className="border border-border bg-brand-light p-4 text-sm font-semibold text-ink">
+        <div className="border border-border bg-brand-light p-4 text-sm font-semibold text-ink rounded-2xl">
           Note: Supabase keys are not configured yet. Add them to .env.local before submitting real records.
         </div>
       )}
 
       {memberLoading && (
-        <div className="border border-border bg-paper p-4 text-sm font-semibold text-mist">
+        <div className="border border-border bg-paper p-4 text-sm font-semibold text-mist rounded-2xl">
           Loading your member profile...
         </div>
       )}
 
       {!memberLoading && !member && role !== "admin" && (
-        <div className="border border-clay bg-brand-light p-4 text-sm font-bold text-clay">
+        <div className="border border-clay bg-brand-light p-4 text-sm font-bold text-clay rounded-2xl">
           Your member profile is not active yet. Ask an admin to approve your application before submitting activity reports.
         </div>
       )}
 
       {repeatSource && (
-        <div className="border-l-4 border-brand bg-brand-light p-4 text-xs font-semibold text-ink flex flex-col gap-2 font-display">
+        <div className="border-l-4 border-brand bg-brand-light p-4 text-xs font-semibold text-ink flex flex-col gap-2 font-display rounded-2xl">
           <div>
             <p className="font-bold text-brand uppercase tracking-wider text-[10px]">Using a previous activity as a template.</p>
             <p className="text-mist mt-1 leading-relaxed">Please review the information and update the date and activity numbers before submitting.</p>
@@ -441,7 +441,7 @@ export function ActivityForm({ repeatId }: { repeatId?: string }) {
       )}
 
       {showRepeatedBanner && (
-        <div className="border-l-4 border-brand bg-brand-light p-4 text-xs font-semibold text-ink flex items-start justify-between font-display animate-fade-in relative">
+        <div className="border-l-4 border-brand bg-brand-light p-4 text-xs font-semibold text-ink flex items-start justify-between font-display animate-fade-in relative rounded-2xl">
           <div>
             <p className="font-bold text-brand flex items-center gap-1.5">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-brand" />
@@ -469,31 +469,31 @@ export function ActivityForm({ repeatId }: { repeatId?: string }) {
 
       {/* ── Repeat Last Entry Card ── */}
       {hasLastEntry && lastEntry && (
-        <div className="border border-border bg-white p-5 shadow-sm font-display relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="border border-border bg-white p-6 shadow-soft font-display relative flex flex-col md:flex-row md:items-center md:justify-between gap-4 rounded-2xl text-left">
           <div className="flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-brand mb-1 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-brand inline-block" />
+            <p className="text-[10px] font-bold uppercase tracking-widest text-brand mb-1 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-brand inline-block animate-pulse" />
               Repeat Last Entry
             </p>
             <h3 className="text-sm font-bold text-ink mb-2">Copy details from your previous submission on this device.</h3>
-            <div className="grid grid-cols-2 gap-2 text-xs text-mist md:grid-cols-4 bg-paper/40 p-3 border border-border/60">
+            <div className="grid grid-cols-2 gap-3 text-xs text-mist md:grid-cols-4 bg-paper/50 p-4 border border-border rounded-xl">
               <div>
-                <span className="block font-bold text-[10px] uppercase text-ink/75 tracking-wider">Type</span>
-                <span className="capitalize">{lastEntry.entryType}</span>
+                <span className="block font-bold text-[9px] uppercase text-ink/75 tracking-wider mb-0.5">Type</span>
+                <span className="capitalize font-semibold text-ink">{lastEntry.entryType}</span>
               </div>
               <div>
-                <span className="block font-bold text-[10px] uppercase text-ink/75 tracking-wider">Name</span>
+                <span className="block font-bold text-[9px] uppercase text-ink/75 tracking-wider mb-0.5">Name</span>
                 <span className="truncate block font-semibold text-ink">{lastEntry.shared.volunteer_name}</span>
               </div>
               <div>
-                <span className="block font-bold text-[10px] uppercase text-ink/75 tracking-wider">Location</span>
-                <span>{lastEntry.shared.location}</span>
+                <span className="block font-bold text-[9px] uppercase text-ink/75 tracking-wider mb-0.5">Location</span>
+                <span className="truncate block font-semibold text-ink">{lastEntry.shared.location}</span>
               </div>
               <div>
-                <span className="block font-bold text-[10px] uppercase text-ink/75 tracking-wider">
+                <span className="block font-bold text-[9px] uppercase text-ink/75 tracking-wider mb-0.5">
                   {lastEntry.entryType === "volunteer" ? "Project" : "Work"}
                 </span>
-                <span className="truncate block">
+                <span className="truncate block font-semibold text-ink">
                   {lastEntry.entryType === "volunteer" 
                     ? lastEntry.vol.project_type 
                     : lastEntry.intern.intern_work_type}
@@ -513,53 +513,62 @@ export function ActivityForm({ repeatId }: { repeatId?: string }) {
         </div>
       )}
 
-      {/* ── Basic Information: Name & Entry Type selector ── */}
-      <SectionTitle kicker="Basic Information" title="Identity & Type" />
-      <div className="grid gap-4 md:grid-cols-2">
-        <Field label={entryType === "intern" ? "Intern Name" : "Volunteer Name"}>
-          <input 
-            required 
-            value={shared.volunteer_name} 
-            onChange={(e) => updateShared("volunteer_name", e.target.value)} 
-            placeholder="Enter full name" 
-            disabled={Boolean(member)}
-          />
-        </Field>
-        
-        <label className="grid gap-1.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-mist">Select Entry Type</span>
-          <div className="grid grid-cols-2 gap-0 border border-border">
-            <button
-              type="button"
-              onClick={() => !member && setEntryType("volunteer")}
+      {/* ── Basic Information Card ── */}
+      <div className="border border-border bg-white p-6 shadow-soft rounded-2xl flex flex-col gap-5 text-left">
+        <SectionTitle 
+          kicker="Basic Information" 
+          title="Identity & Type" 
+          description="Enter your full name and select volunteer or intern role classification."
+          icon="👤"
+        />
+        <div className="grid gap-6 md:grid-cols-2">
+          <Field label={entryType === "intern" ? "Intern Name" : "Volunteer Name"} icon="👤">
+            <input 
+              required 
+              value={shared.volunteer_name} 
+              onChange={(e) => updateShared("volunteer_name", e.target.value)} 
+              placeholder="Enter full name" 
               disabled={Boolean(member)}
-              className={`h-10 text-xs font-bold uppercase tracking-wide font-display transition-colors duration-200 ${
-                entryType === "volunteer"
-                  ? "bg-brand text-white"
-                  : "bg-paper text-mist hover:text-ink hover:bg-brand-light/10"
-              }`}
-            >
-              Volunteer
-            </button>
-            <button
-              type="button"
-              onClick={() => !member && setEntryType("intern")}
-              disabled={Boolean(member)}
-              className={`h-10 text-xs font-bold uppercase tracking-wide font-display transition-colors duration-200 border-l border-border ${
-                entryType === "intern"
-                  ? "bg-brand text-white"
-                  : "bg-paper text-mist hover:text-ink hover:bg-brand-light/10"
-              }`}
-            >
-              Intern
-            </button>
-          </div>
-        </label>
+            />
+          </Field>
+          
+          <label className="grid gap-1.5 text-left font-display">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-mist flex items-center gap-1.5">
+              <span>⚡</span> Select Entry Type
+            </span>
+            <div className="grid grid-cols-2 gap-0 border border-border rounded-lg overflow-hidden">
+              <button
+                type="button"
+                onClick={() => !member && setEntryType("volunteer")}
+                disabled={Boolean(member)}
+                className={`h-10 text-xs font-bold uppercase tracking-wide font-display transition-colors duration-200 ${
+                  entryType === "volunteer"
+                    ? "bg-brand text-white"
+                    : "bg-paper text-mist hover:text-ink hover:bg-brand-light/10"
+                }`}
+              >
+                Volunteer
+              </button>
+              <button
+                type="button"
+                onClick={() => !member && setEntryType("intern")}
+                disabled={Boolean(member)}
+                className={`h-10 text-xs font-bold uppercase tracking-wide font-display transition-colors duration-200 border-l border-border ${
+                  entryType === "intern"
+                    ? "bg-brand text-white"
+                    : "bg-paper text-mist hover:text-ink hover:bg-brand-light/10"
+                }`}
+              >
+                Intern
+              </button>
+            </div>
+          </label>
+        </div>
       </div>
 
       {/* ── Conditional Fields render ── */}
       {entryType === "" ? (
-        <div className="border border-dashed border-border p-6 text-center text-sm font-semibold text-mist font-display bg-paper/50">
+        <div className="border border-dashed border-border p-6 text-center text-sm font-semibold text-mist font-display bg-paper/50 rounded-2xl">
           Please enter a name and select Volunteer or Intern above to view the rest of the form.
         </div>
       ) : (
@@ -567,38 +576,59 @@ export function ActivityForm({ repeatId }: { repeatId?: string }) {
           {/* ── Volunteer-only Fields ── */}
           {entryType === "volunteer" && (
             <>
-              <SectionTitle kicker="Volunteer Details" title="Type, Organisation & Project" />
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Volunteer Type">
-                  <select required value={vol.volunteer_type} onChange={(e) => updateVol("volunteer_type", e.target.value as VolunteerType)}>
-                    {volunteerTypes.map((t) => (
-                      <option key={t}>{t}</option>
-                    ))}
-                  </select>
-                </Field>
-                {showOrganisation && (
-                  <Field label="Organisation / Company / College">
-                    <input value={vol.organisation} onChange={(e) => updateVol("organisation", e.target.value)} placeholder="Company or institution name" />
+              {/* Card 1: Type, Organisation & Project */}
+              <div className="border border-border bg-white p-6 shadow-soft rounded-2xl flex flex-col gap-5 text-left">
+                <SectionTitle 
+                  kicker="Volunteer Details" 
+                  title="Type, Organisation & Project" 
+                  description="Specify your affiliation type, programme assignment, and core project role."
+                  icon="📁"
+                />
+                <div className="grid gap-6 md:grid-cols-2">
+                  <Field label="Volunteer Type" icon="👥">
+                    <select required value={vol.volunteer_type} onChange={(e) => updateVol("volunteer_type", e.target.value as VolunteerType)}>
+                      {volunteerTypes.map((t) => (
+                        <option key={t}>{t}</option>
+                      ))}
+                    </select>
                   </Field>
-                )}
-                <Field label="Programme / Project Name">
-                  <input required value={vol.programme_name} onChange={(e) => updateVol("programme_name", e.target.value)} placeholder="e.g. Shiksha Mitra" />
-                </Field>
-                <Field label="Project Type">
-                  <select required value={vol.project_type} onChange={(e) => updateVol("project_type", e.target.value as ProjectType)}>
-                    {projectTypes.map((t) => (
-                      <option key={t}>{t}</option>
-                    ))}
-                  </select>
-                </Field>
+                  
+                  <Field label="Programme / Project Name" icon="📁">
+                    <input required value={vol.programme_name} onChange={(e) => updateVol("programme_name", e.target.value)} placeholder="e.g. Shiksha Mitra" />
+                  </Field>
+
+                  <Field label="Project Type" icon="⚡">
+                    <select required value={vol.project_type} onChange={(e) => updateVol("project_type", e.target.value as ProjectType)}>
+                      {projectTypes.map((t) => (
+                        <option key={t}>{t}</option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  {showOrganisation ? (
+                    <Field label="Organisation / Company / College" icon="🏢">
+                      <input value={vol.organisation} onChange={(e) => updateVol("organisation", e.target.value)} placeholder="Company or institution name" />
+                    </Field>
+                  ) : (
+                    <div className="hidden md:block" />
+                  )}
+                </div>
               </div>
 
-              <SectionTitle kicker="Impact Details" title="Numbers Captured for Reporting" />
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <NumberField label="Number of Volunteers" value={vol.num_volunteers} onChange={(v) => updateVol("num_volunteers", v)} />
-                <NumberField label="Number of Volunteering Hours" value={vol.volunteering_hours} onChange={(v) => updateVol("volunteering_hours", v)} />
-                <NumberField label="Number of Beneficiaries Impacted" value={vol.beneficiaries_impacted} onChange={(v) => updateVol("beneficiaries_impacted", v)} />
-                <NumberField label="Trees Planted" value={vol.trees_planted} onChange={(v) => updateVol("trees_planted", v)} />
+              {/* Card 2: Impact Details */}
+              <div className="border border-border bg-white p-6 shadow-soft rounded-2xl flex flex-col gap-5 text-left">
+                <SectionTitle 
+                  kicker="Impact Details" 
+                  title="Numbers Captured for Reporting" 
+                  description="Record the measurable contribution metrics from this volunteer activity."
+                  icon="📊"
+                />
+                <div className="grid gap-6 md:grid-cols-2">
+                  <NumberField label="Number of Volunteers" value={vol.num_volunteers} onChange={(v) => updateVol("num_volunteers", v)} icon="👥" />
+                  <NumberField label="Volunteering Hours" value={vol.volunteering_hours} onChange={(v) => updateVol("volunteering_hours", v)} icon="⏰" />
+                  <NumberField label="Number of Beneficiaries Impacted" value={vol.beneficiaries_impacted} onChange={(v) => updateVol("beneficiaries_impacted", v)} icon="👥" />
+                  <NumberField label="Trees Planted" value={vol.trees_planted} onChange={(v) => updateVol("trees_planted", v)} icon="🌳" />
+                </div>
               </div>
             </>
           )}
@@ -606,96 +636,127 @@ export function ActivityForm({ repeatId }: { repeatId?: string }) {
           {/* ── Intern-only Fields ── */}
           {entryType === "intern" && (
             <>
-              <SectionTitle kicker="Intern Details" title="College, Duration & Work Track" />
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Organisation / College">
-                  <input value={intern.organisation} onChange={(e) => updateIntern("organisation", e.target.value)} placeholder="College or university name" />
-                </Field>
-                <Field label="Internship Start Date">
-                  <input required type="date" value={intern.internship_start_date} onChange={(e) => updateIntern("internship_start_date", e.target.value)} />
-                </Field>
-                <Field label="Internship End Date">
-                  <input required type="date" value={intern.internship_end_date} onChange={(e) => updateIntern("internship_end_date", e.target.value)} />
-                </Field>
-                <Field label="Department / Track">
-                  <select required value={intern.department} onChange={(e) => updateIntern("department", e.target.value as Department)}>
-                    {departments.map((d) => (
-                      <option key={d}>{d}</option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Nature of Internship Work">
-                  <select required value={intern.intern_work_type} onChange={(e) => updateIntern("intern_work_type", e.target.value as InternWorkType)}>
-                    {internWorkTypes.map((workType) => (
-                      <option key={workType}>{workType}</option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Project / Milestone Name">
-                  <input required value={intern.milestone} onChange={(e) => updateIntern("milestone", e.target.value)} placeholder="e.g. Frontend Dashboard" />
-                </Field>
-                <Field label="Supervisor / Mentor Name">
-                  <input value={intern.supervisor_name} onChange={(e) => updateIntern("supervisor_name", e.target.value)} placeholder="Optional" />
-                </Field>
+              {/* Card 1: College, Duration & Work Track */}
+              <div className="border border-border bg-white p-6 shadow-soft rounded-2xl flex flex-col gap-5 text-left">
+                <SectionTitle 
+                  kicker="Intern Details" 
+                  title="College, Duration & Work Track" 
+                  description="Log your organization affiliation, department track, and internship period."
+                  icon="📁"
+                />
+                <div className="grid gap-6 md:grid-cols-2">
+                  <Field label="Organisation / College" icon="🏢">
+                    <input value={intern.organisation} onChange={(e) => updateIntern("organisation", e.target.value)} placeholder="College or university name" />
+                  </Field>
+                  <Field label="Department / Track" icon="💻">
+                    <select required value={intern.department} onChange={(e) => updateIntern("department", e.target.value as Department)}>
+                      {departments.map((d) => (
+                        <option key={d}>{d}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Internship Start Date" icon="📅">
+                    <input required type="date" value={intern.internship_start_date} onChange={(e) => updateIntern("internship_start_date", e.target.value)} />
+                  </Field>
+                  <Field label="Internship End Date" icon="📅">
+                    <input required type="date" value={intern.internship_end_date} onChange={(e) => updateIntern("internship_end_date", e.target.value)} />
+                  </Field>
+                  <Field label="Nature of Internship Work" icon="📁">
+                    <select required value={intern.intern_work_type} onChange={(e) => updateIntern("intern_work_type", e.target.value as InternWorkType)}>
+                      {internWorkTypes.map((workType) => (
+                        <option key={workType}>{workType}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Project / Milestone Name" icon="🎯">
+                    <input required value={intern.milestone} onChange={(e) => updateIntern("milestone", e.target.value)} placeholder="e.g. Frontend Dashboard" />
+                  </Field>
+                  <div className="md:col-span-2">
+                    <Field label="Supervisor / Mentor Name" icon="👤">
+                      <input value={intern.supervisor_name} onChange={(e) => updateIntern("supervisor_name", e.target.value)} placeholder="Optional" />
+                    </Field>
+                  </div>
+                </div>
               </div>
 
-              <SectionTitle kicker="Impact Details" title="Hours and activities" />
-              <div className="grid gap-4 md:grid-cols-3">
-                <NumberField label="Internship Hours" value={intern.internship_hours} onChange={(v) => updateIntern("internship_hours", v)} />
-                <NumberField label="Number of Activities Completed" value={intern.deliverables_completed} onChange={(v) => updateIntern("deliverables_completed", v)} />
-                <NumberField label="Number of Beneficiaries Impacted" value={intern.beneficiaries_impacted} onChange={(v) => updateIntern("beneficiaries_impacted", v)} />
+              {/* Card 2: Impact Details */}
+              <div className="border border-border bg-white p-6 shadow-soft rounded-2xl flex flex-col gap-5 text-left">
+                <SectionTitle 
+                  kicker="Impact Details" 
+                  title="Hours and activities" 
+                  description="Record completed activities and hours spent during this reporting block."
+                  icon="📊"
+                />
+                <div className="grid gap-6 md:grid-cols-3">
+                  <NumberField label="Internship Hours" value={intern.internship_hours} onChange={(v) => updateIntern("internship_hours", v)} icon="⏰" />
+                  <NumberField label="Number of Activities Completed" value={intern.deliverables_completed} onChange={(v) => updateIntern("deliverables_completed", v)} icon="📊" />
+                  <NumberField label="Number of Beneficiaries Impacted" value={intern.beneficiaries_impacted} onChange={(v) => updateIntern("beneficiaries_impacted", v)} icon="👥" />
+                </div>
               </div>
             </>
           )}
 
-          {/* ── Shared Details (Date, Location, Supervisor, Remarks, Submitter) ── */}
-          <SectionTitle kicker="Oversight & Verification" title="Date, Place and Supervisor" />
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Date of Activity">
-              <input required type="date" value={shared.activity_date} onChange={(e) => updateShared("activity_date", e.target.value)} />
-            </Field>
-            <Field label="Location of Activity">
-              <input required value={shared.location} onChange={(e) => updateShared("location", e.target.value)} placeholder="e.g. Pune School" />
-            </Field>
-            <Field label="Staff In-Charge">
-              <select required value={shared.staff_in_charge} onChange={(e) => updateShared("staff_in_charge", e.target.value)}>
-                <option value="">Select staff member</option>
-                {staffMembers.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Submitted By">
-              <input value={shared.submitted_by} onChange={(e) => updateShared("submitted_by", e.target.value)} placeholder="e.g. Sneha G. (Optional)" />
-            </Field>
-            <div className="md:col-span-2">
-              <Field label="Remarks (Optional)">
-                <textarea
-                  rows={3}
-                  value={shared.remarks}
-                  onChange={(e) => updateShared("remarks", e.target.value)}
-                  placeholder="Describe what you worked on, achievements, challenges, or any additional information."
-                />
+          {/* ── Oversight & Verification Card ── */}
+          <div className="border border-border bg-white p-6 shadow-soft rounded-2xl flex flex-col gap-5 text-left">
+            <SectionTitle 
+              kicker="Oversight & Verification" 
+              title="Date, Place and Supervisor" 
+              description="Complete verification details including target date, location and in-charge supervisor."
+              icon="📅"
+            />
+            <div className="grid gap-6 md:grid-cols-2">
+              <Field label="Date of Activity" icon="📅">
+                <input required type="date" value={shared.activity_date} onChange={(e) => updateShared("activity_date", e.target.value)} />
               </Field>
+              <Field label="Location of Activity" icon="📍">
+                <input required value={shared.location} onChange={(e) => updateShared("location", e.target.value)} placeholder="e.g. Pune School" />
+              </Field>
+              <Field label="Staff In-Charge" icon="👤">
+                <select required value={shared.staff_in_charge} onChange={(e) => updateShared("staff_in_charge", e.target.value)}>
+                  <option value="">Select staff member</option>
+                  {staffMembers.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Submitted By" icon="👤">
+                <input value={shared.submitted_by} onChange={(e) => updateShared("submitted_by", e.target.value)} placeholder="e.g. Sneha G. (Optional)" />
+              </Field>
+              <div className="md:col-span-2">
+                <Field label="Remarks (Optional)" icon="📝">
+                  <textarea
+                    rows={4}
+                    className="min-h-[110px] w-full"
+                    value={shared.remarks}
+                    onChange={(e) => updateShared("remarks", e.target.value)}
+                    placeholder="Describe what you worked on, achievements, challenges, or any additional information."
+                  />
+                </Field>
+              </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 pt-2">
+          {/* Action buttons */}
+          <div className="flex flex-col sm:flex-row items-center gap-3 pt-4 w-full">
             <button
               disabled={status === "saving"}
-              className="rounded-none bg-brand px-6 py-2.5 text-sm font-bold uppercase tracking-wide text-white transition-colors duration-200 hover:bg-ink hover:text-white disabled:cursor-not-allowed disabled:opacity-50 h-11 font-display"
+              className="btn-press bg-brand text-white px-8 py-3.5 text-xs font-bold uppercase tracking-wider transition-all duration-200 hover:bg-ink hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 h-12 flex items-center justify-center gap-2 font-display w-full sm:w-auto rounded-lg"
               type="submit"
             >
-              {status === "saving" ? "Submitting..." : "Submit Activity"}
+              {status === "saving" ? "Submitting..." : "🚀 Submit Activity"}
             </button>
             <button
-              className="rounded-none border border-border bg-white px-6 py-2.5 text-sm font-bold uppercase tracking-wide text-ink hover:border-brand hover:text-brand transition-all h-11 font-display"
+              className="border border-border bg-white text-ink px-6 py-3.5 text-xs font-bold uppercase tracking-wider hover:border-brand hover:text-brand transition-all h-12 flex items-center justify-center gap-2 font-display w-full sm:w-auto rounded-lg"
               type="button"
               onClick={handleClear}
             >
               Clear
             </button>
-            {message && <p className={`text-sm font-bold ${status === "error" ? "text-clay" : "text-brand"}`}>{message}</p>}
+            {message && (
+              <p className={`text-xs font-bold font-display px-2 py-1 ${status === "error" ? "text-clay" : "text-[#167241]"}`}>
+                {message}
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -703,31 +764,38 @@ export function ActivityForm({ repeatId }: { repeatId?: string }) {
   );
 }
 
-function SectionTitle({ kicker, title }: { kicker: string; title: string }) {
+function SectionTitle({ kicker, title, description, icon }: { kicker: string; title: string; description?: string; icon?: React.ReactNode }) {
   return (
-    <div className="border-b border-border pb-2 mt-4 first:mt-0 font-display">
-      <p className="text-xs font-bold uppercase tracking-widest text-brand">{kicker}</p>
-      <h2 className="mt-0.5 text-lg font-bold text-ink uppercase tracking-wide">{title}</h2>
+    <div className="font-display text-left">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-brand flex items-center gap-1.5">
+        {icon && <span>{icon}</span>}
+        {kicker}
+      </p>
+      <h3 className="mt-0.5 text-lg font-black text-ink uppercase tracking-wide">{title}</h3>
+      {description && <p className="text-xs text-mist mt-0.5 font-semibold">{description}</p>}
     </div>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, icon, children }: { label: string; icon?: string; children: React.ReactNode }) {
   return (
-    <label className="grid gap-1.5">
-      <span className="text-[11px] font-bold uppercase tracking-wider text-mist">{label}</span>
-      <div className="[&_input]:h-10 [&_input]:rounded-none [&_input]:border [&_input]:border-border [&_input]:px-3 [&_input]:text-sm [&_input]:bg-white
-                      [&_select]:h-10 [&_select]:rounded-none [&_select]:border [&_select]:border-border [&_select]:px-3 [&_select]:text-sm [&_select]:bg-white
-                      [&_textarea]:rounded-none [&_textarea]:border [&_textarea]:border-border [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:bg-white">
+    <label className="grid gap-1.5 text-left font-display">
+      <span className="text-[11px] font-bold uppercase tracking-wider text-mist flex items-center gap-1.5">
+        {icon && <span>{icon}</span>}
+        {label}
+      </span>
+      <div className="[&_input]:h-10 [&_input]:border [&_input]:border-border [&_input]:px-3 [&_input]:text-sm [&_input]:bg-white [&_input]:w-full [&_input]:transition-all [&_input:focus]:border-brand [&_input:focus]:outline-none [&_input:focus]:ring-1 [&_input:focus]:ring-brand [&_input]:rounded-lg
+                      [&_select]:h-10 [&_select]:border [&_select]:border-border [&_select]:px-3 [&_select]:text-sm [&_select]:bg-white [&_select]:w-full [&_select]:transition-all [&_select:focus]:border-brand [&_select:focus]:outline-none [&_select:focus]:ring-1 [&_select:focus]:ring-brand [&_select]:rounded-lg
+                      [&_textarea]:border [&_textarea]:border-border [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-sm [&_textarea]:bg-white [&_textarea]:w-full [&_textarea]:transition-all [&_textarea:focus]:border-brand [&_textarea:focus]:outline-none [&_textarea:focus]:ring-1 [&_textarea:focus]:ring-brand [&_textarea]:rounded-lg">
         {children}
       </div>
     </label>
   );
 }
 
-function NumberField({ label, value, onChange, required = true }: { label: string; value: number; onChange: (value: number) => void; required?: boolean }) {
+function NumberField({ label, value, onChange, icon, required = true }: { label: string; value: number; onChange: (value: number) => void; icon?: string; required?: boolean }) {
   return (
-    <Field label={label}>
+    <Field label={label} icon={icon}>
       <input required={required} min={0} step="0.5" type="number" value={value} onChange={(event) => onChange(Number(event.target.value))} />
     </Field>
   );
