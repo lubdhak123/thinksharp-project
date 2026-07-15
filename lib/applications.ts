@@ -126,7 +126,7 @@ export async function approveApplication(id: string) {
     body: JSON.stringify({ applicationId: id }),
   });
 
-  const result = (await response.json().catch(() => null)) as { application?: Application; error?: string } | null;
+  const result = (await response.json().catch(() => null)) as { application?: Application; inviteLink?: string | null; error?: string } | null;
 
   if (!response.ok) {
     throw new Error(result?.error ?? "Could not approve application.");
@@ -136,5 +136,8 @@ export async function approveApplication(id: string) {
     throw new Error("Approval completed but the updated application was not returned.");
   }
 
-  return result.application;
+  return {
+    ...result.application,
+    inviteLink: result.inviteLink ?? null
+  };
 }

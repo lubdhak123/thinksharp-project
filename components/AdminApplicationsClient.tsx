@@ -36,6 +36,7 @@ export function AdminApplicationsClient() {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [latestInviteLink, setLatestInviteLink] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -92,6 +93,8 @@ export function AdminApplicationsClient() {
     setError("");
 
     try {
+      setLatestInviteLink(null);
+
       const updated =
         status === "Approved"
           ? await approveApplication(app.id)
@@ -99,6 +102,10 @@ export function AdminApplicationsClient() {
 
       if (status === "Rejected") {
         console.log(`[TODO] Trigger Rejection Email to ${app.email}`);
+      }
+
+      if (updated.inviteLink) {
+        setLatestInviteLink(updated.inviteLink);
       }
 
       setApplications((current) =>
@@ -120,6 +127,25 @@ export function AdminApplicationsClient() {
       {error && (
         <div className="border border-red-500 bg-red-50 p-4 text-sm font-bold text-red-700 font-display rounded-xl">
           {error}
+        </div>
+      )}
+
+      {latestInviteLink && (
+        <div className="border border-[#167241]/35 bg-[#e9f7ef] p-4 text-xs font-semibold text-[#167241] font-display rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm">
+          <div>
+            <p className="font-bold text-[13px] flex items-center gap-1.5 text-[#167241]">🎉 Onboarding Invite Link Ready</p>
+            <p className="text-mist text-xs mt-1">If the candidate did not receive their registration email, copy and share this link directly to set their password:</p>
+            <span className="font-mono text-[10px] break-all bg-white border border-[#167241]/25 px-2 py-1 rounded inline-block mt-2 font-bold text-[#167241]/90 select-all">{latestInviteLink}</span>
+          </div>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(latestInviteLink!);
+              alert("Invitation link copied to clipboard!");
+            }}
+            className="px-4 py-2 bg-[#167241] text-white hover:bg-ink text-[10px] font-bold uppercase tracking-wider rounded-xl transition-all shrink-0 shadow-md shadow-[#167241]/10"
+          >
+            Copy Link
+          </button>
         </div>
       )}
 

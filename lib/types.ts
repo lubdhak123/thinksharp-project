@@ -203,6 +203,7 @@ export type Application = {
   admin_notes: string | null;
   reviewed_at: string | null;
   reviewed_by: string | null;
+  inviteLink?: string | null;
 };
 
 export type ApplicationInsert = Omit<

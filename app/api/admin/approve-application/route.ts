@@ -88,6 +88,28 @@ export async function POST(request: Request) {
     }
   }
 
+  let inviteLink: string | null = null;
+  try {
+    const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+      type: "invite",
+      email,
+      options: {
+        redirectTo,
+        data: {
+          full_name: app.full_name,
+          role,
+          application_id: app.id,
+        }
+      }
+    });
+    if (!linkError && linkData?.properties?.action_link) {
+      inviteLink = linkData.properties.action_link;
+      console.log(`[ONBOARDING INVITE LINK GENERATED] Email: ${email} -> Link: ${inviteLink}`);
+    }
+  } catch (err) {
+    console.error("Could not generate invite link:", err);
+  }
+
   const { error: approvalError } = await admin.rpc("approve_application", {
     target_application_id: app.id,
   });
@@ -95,8 +117,6 @@ export async function POST(request: Request) {
   if (approvalError) {
     return NextResponse.json({ error: approvalError.message }, { status: 500 });
   }
-
-  // TODO: Trigger Onboarding/Activation Email to the applicant containing congratulations message, their new TSF User ID, and set-password redirect link.
 
   await admin
     .from("applications")
@@ -113,5 +133,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: fetchError?.message ?? "Could not fetch approved application." }, { status: 500 });
   }
 
-  return NextResponse.json({ application: updatedApplication });
+  return NextResponse.json({ application: updatedApplication, inviteLink });
 }
