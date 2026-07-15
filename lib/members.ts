@@ -110,13 +110,48 @@ export async function updateMemberStatus(
   status: Member["status"],
   certificateNumber?: string | null
 ) {
+  let currentStatus: Member["status"] = "Active";
+
   if (!supabase) {
+    currentStatus = (localStorage.getItem(`thinksharp_demo_member_status_${memberId}`) as Member["status"]) || "Active";
+    
+    const isValidTransition = 
+      (currentStatus === "Active" && status === "Completed") ||
+      (currentStatus === "Active" && status === "Suspended") ||
+      (currentStatus === "Suspended" && status === "Active");
+
+    if (!isValidTransition && currentStatus !== status) {
+      throw new Error(`Invalid lifecycle transition: Cannot change status from '${currentStatus}' to '${status}'.`);
+    }
+
     // In demo mode, save status and certificate in localStorage
     localStorage.setItem(`thinksharp_demo_member_status_${memberId}`, status);
     if (status === "Completed" && certificateNumber) {
       localStorage.setItem(`thinksharp_demo_member_cert_${memberId}`, certificateNumber);
     }
     return;
+  }
+
+  // Fetch current status from DB to validate transition rules
+  const { data: member, error: fetchError } = await supabase
+    .from("members")
+    .select("status")
+    .eq("id", memberId)
+    .single();
+
+  if (fetchError || !member) {
+    throw new Error(fetchError?.message || "Member not found.");
+  }
+
+  currentStatus = member.status as Member["status"];
+
+  const isValidTransition = 
+    (currentStatus === "Active" && status === "Completed") ||
+    (currentStatus === "Active" && status === "Suspended") ||
+    (currentStatus === "Suspended" && status === "Active");
+
+  if (!isValidTransition && currentStatus !== status) {
+    throw new Error(`Invalid lifecycle transition: Cannot change status from '${currentStatus}' to '${status}'.`);
   }
 
   const payload: any = {
