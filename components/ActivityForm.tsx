@@ -279,7 +279,7 @@ export function ActivityForm({ repeatId }: { repeatId?: string }) {
           num_volunteers: Number(vol.num_volunteers),
           volunteering_hours: Number(vol.volunteering_hours),
           beneficiaries_impacted: Number(vol.beneficiaries_impacted),
-          trees_planted: Number(vol.trees_planted),
+          trees_planted: vol.project_type === "Plantation Drive" ? Number(vol.trees_planted) : 0,
           activities_completed: null,
           individual_hours: null,
           group_hours: null,
@@ -627,7 +627,9 @@ export function ActivityForm({ repeatId }: { repeatId?: string }) {
                   <NumberField label="Number of Volunteers" value={vol.num_volunteers} onChange={(v) => updateVol("num_volunteers", v)} icon="👥" />
                   <NumberField label="Volunteering Hours" value={vol.volunteering_hours} onChange={(v) => updateVol("volunteering_hours", v)} icon="⏰" />
                   <NumberField label="Number of Beneficiaries Impacted" value={vol.beneficiaries_impacted} onChange={(v) => updateVol("beneficiaries_impacted", v)} icon="👥" />
-                  <NumberField label="Trees Planted" value={vol.trees_planted} onChange={(v) => updateVol("trees_planted", v)} icon="🌳" />
+                  {vol.project_type === "Plantation Drive" && (
+                    <NumberField label="Trees Planted" value={vol.trees_planted} onChange={(v) => updateVol("trees_planted", v)} icon="🌳" />
+                  )}
                 </div>
               </div>
             </>
