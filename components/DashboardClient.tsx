@@ -1,7 +1,7 @@
 "use client";
 
 import { toPng } from "html-to-image";
-import { Download, FileText, ImageIcon, RefreshCw, X } from "lucide-react";
+import { Download, FileText, ImageIcon, RefreshCw, X, TrendingUp, Award, Clock, Users, BookOpen, User, CheckCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { ActivityTrendChart, ActivityTypeChart, ContributorChart, HoursChart } from "@/components/charts/DashboardCharts";
 import { FilterBar } from "@/components/FilterBar";
@@ -10,7 +10,7 @@ import { RecordsTable } from "@/components/RecordsTable";
 import { StatCard } from "@/components/StatCard";
 import type { DashboardView, Granularity } from "@/lib/constants";
 import { exportActivitiesToExcel, exportSummaryToPdf } from "@/lib/export";
-import { activitiesByType, distinctOptions, fetchActivities, filterByView, impactStats, staffOverseen, summarize, topContributors, trend, useDemoMode } from "@/lib/queries";
+import { activitiesByType, distinctOptions, fetchActivities, filterByView, getTotalHours, impactStats, staffOverseen, summarize, topContributors, trend, useDemoMode } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
 import type { Activity, Filters } from "@/lib/types";
 
@@ -35,6 +35,7 @@ export function DashboardClient({ recordsOnly = false }: { recordsOnly?: boolean
   const [error, setError] = useState("");
   const [animKey, setAnimKey] = useState(0);      // increments to replay animations
   const [flashing, setFlashing] = useState(false); // briefly true after refresh
+  const [lastUpdatedSecs, setLastUpdatedSecs] = useState(0);
   const impactCardRef = useRef<HTMLDivElement>(null);
   const demoMode = useDemoMode();
 
@@ -43,9 +44,9 @@ export function DashboardClient({ recordsOnly = false }: { recordsOnly?: boolean
     setError("");
     try {
       setRecords(await fetchActivities(filters));
-      // Replay all animations and flash numbers
       setAnimKey((k) => k + 1);
       setFlashing(true);
+      setLastUpdatedSecs(0);
       setTimeout(() => setFlashing(false), 800);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Could not load records.");
@@ -57,6 +58,13 @@ export function DashboardClient({ recordsOnly = false }: { recordsOnly?: boolean
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLastUpdatedSecs((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const onFocus = () => load();
@@ -144,57 +152,186 @@ export function DashboardClient({ recordsOnly = false }: { recordsOnly?: boolean
     }
   }, [view, summary]);
 
+  // Compute V2 Executive Insights Panel (Read-only logic using useMemo)
+  const topVolunteer = useMemo(() => {
+    const contributor = contributorData[0];
+    return contributor ? contributor.name : "N/A";
+  }, [contributorData]);
+
+  const mostActiveProgramme = useMemo(() => {
+    const counts: Record<string, number> = {};
+    scopedRecords.forEach(r => {
+      const name = r.programme_name || r.milestone;
+      if (name) counts[name] = (counts[name] || 0) + 1;
+    });
+    let best = "N/A";
+    let max = 0;
+    Object.entries(counts).forEach(([name, val]) => {
+      if (val > max) {
+        max = val;
+        best = name;
+      }
+    });
+    return best;
+  }, [scopedRecords]);
+
+  const avgHours = useMemo(() => {
+    if (scopedRecords.length === 0) return "0.0";
+    const totalHours = scopedRecords.reduce((sum, r) => sum + getTotalHours(r), 0);
+    return (totalHours / scopedRecords.length).toFixed(1);
+  }, [scopedRecords]);
+
+  const mostActiveStaff = useMemo(() => {
+    const counts: Record<string, number> = {};
+    scopedRecords.forEach(r => {
+      if (r.staff_in_charge) counts[r.staff_in_charge] = (counts[r.staff_in_charge] || 0) + 1;
+    });
+    let best = "N/A";
+    let max = 0;
+    Object.entries(counts).forEach(([name, val]) => {
+      if (val > max) {
+        max = val;
+        best = name;
+      }
+    });
+    return best;
+  }, [scopedRecords]);
+
+  // Generate V2 30-day activity heatmap dataset
+  const last30Days = useMemo(() => {
+    const days = [];
+    const counts: Record<string, number> = {};
+    
+    scopedRecords.forEach(r => {
+      if (r.activity_date) counts[r.activity_date] = (counts[r.activity_date] || 0) + 1;
+    });
+
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().slice(0, 10);
+      const formatted = d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+      days.push({
+        dateStr,
+        formatted,
+        count: counts[dateStr] || 0
+      });
+    }
+    return days;
+  }, [scopedRecords]);
+
+  const formatLastUpdated = (secs: number) => {
+    if (secs < 5) return "Just now";
+    if (secs < 60) return `${secs}s ago`;
+    const mins = Math.floor(secs / 60);
+    return `${mins}m ago`;
+  };
+
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-6 text-left">
       {demoMode && (
-        <div className="border border-border bg-brand-light p-4 text-sm font-semibold text-ink">
-          Note: Showing demo data. Supabase environment keys are not configured yet in .env.local.
+        <div className="border border-border bg-brand-light p-4 text-sm font-semibold text-ink rounded-xl">
+          💡 Note: Showing demo data. Supabase environment keys are not configured yet in .env.local.
         </div>
       )}
-      <div className="no-print flex flex-wrap items-center justify-between gap-4 font-display">
-        {!recordsOnly && (
-          <div className="flex flex-wrap gap-2">
-            {tabs.map((tab) => {
-              const isActive = view === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  className={`btn-press px-4 py-2 text-sm font-bold tracking-wide border-2 transition-all duration-200 outline-none focus:outline-none ${
-                    isActive
-                      ? "border-brand text-brand bg-transparent"
-                      : "border-transparent text-mist hover:text-ink"
-                  }`}
-                  type="button"
-                  onClick={() => { setView(tab.id); setAnimKey((k) => k + 1); }}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
+
+      {/* Premium Dark Hero Card */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#111] to-[#222] p-8 text-white border border-brand/20 shadow-2xl">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-brand/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-brand/5 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/10 pb-6 relative z-10">
+          <div>
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand bg-brand/10 border border-brand/20 px-3 py-1 rounded-full">
+              ORGANISATION ANALYTICS
+            </span>
+            <h1 className="mt-2 text-2xl md:text-3xl font-display font-black tracking-tight text-white">
+              ThinkSharp Foundation Impact Dashboard
+            </h1>
+            <p className="text-xs text-mist font-semibold mt-1 flex items-center gap-1.5">
+              Last Updated: {formatLastUpdated(lastUpdatedSecs)}
+              <span className="w-1.5 h-1.5 rounded-full bg-[#167241] inline-block animate-pulse" />
+              <span className="text-[10px] uppercase font-bold tracking-wider text-[#167241]">LIVE</span>
+            </p>
           </div>
-        )}
+          
+          {/* Action Tabs & Controls Inside Dark Hero */}
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
+            {!recordsOnly && (
+              <div className="flex bg-[#222] border border-white/10 p-1 rounded-xl">
+                {tabs.map((tab) => {
+                  const isActive = view === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      className={`px-4 py-1.5 text-xs font-black tracking-wider uppercase transition-all rounded-lg outline-none focus:outline-none ${
+                        isActive
+                          ? "bg-brand text-white shadow-lg shadow-brand/20"
+                          : "text-white/60 hover:text-white"
+                      }`}
+                      type="button"
+                      onClick={() => { setView(tab.id); setAnimKey((k) => k + 1); }}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Hero Today's Impact Numbers strip */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-6 relative z-10 font-display">
+          <div>
+            <span className="text-[10px] font-bold text-mist/60 uppercase tracking-widest block">Beneficiaries</span>
+            <strong className="text-3xl md:text-4xl font-black text-white mt-1 block tracking-tight">
+              {summary.beneficiariesImpacted.toLocaleString("en-IN")}
+            </strong>
+          </div>
+          <div>
+            <span className="text-[10px] font-bold text-mist/60 uppercase tracking-widest block">Volunteer Hours</span>
+            <strong className="text-3xl md:text-4xl font-black text-white mt-1 block tracking-tight">
+              {summary.volunteerHours.toLocaleString("en-IN")}
+            </strong>
+          </div>
+          <div>
+            <span className="text-[10px] font-bold text-mist/60 uppercase tracking-widest block">Active Members</span>
+            <strong className="text-3xl md:text-4xl font-black text-white mt-1 block tracking-tight">
+              {(summary.activeVolunteers + summary.activeInterns).toLocaleString("en-IN")}
+            </strong>
+          </div>
+          <div>
+            <span className="text-[10px] font-bold text-mist/60 uppercase tracking-widest block">Programmes Tracked</span>
+            <strong className="text-3xl md:text-4xl font-black text-white mt-1 block tracking-tight">
+              {options.programmes.length}
+            </strong>
+          </div>
+        </div>
+      </div>
+
+      {/* Modernized Operations Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-4 font-display">
+        <h2 className="text-xs font-black uppercase tracking-widest text-brand flex items-center gap-1.5">
+          <span>📈</span> Dashboard Operations
+        </h2>
         <div className="flex flex-wrap items-center gap-2">
-          {/* Live pulse badge */}
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-mist">
-            <span className="live-dot w-2 h-2 rounded-full bg-brand inline-block" />
-            Live
-          </span>
-          <button className="btn-press inline-flex items-center gap-2 border border-border bg-white px-4 py-2 text-sm font-semibold text-ink hover:border-brand hover:text-brand transition-all active:bg-brand-light/45" type="button" onClick={load}>
-            <RefreshCw size={15} />
+          <button className="btn-press inline-flex items-center gap-2 border border-border bg-white px-4 py-2 text-xs font-bold uppercase tracking-wider text-ink hover:border-brand hover:text-brand transition-all rounded-xl shadow-xs" type="button" onClick={load}>
+            <RefreshCw size={14} className="text-brand" />
             Refresh
           </button>
-          <button className="btn-press inline-flex items-center gap-2 border border-border bg-white px-4 py-2 text-sm font-semibold text-ink hover:border-brand hover:text-brand transition-all active:bg-brand-light/45" type="button" onClick={() => exportActivitiesToExcel(scopedRecords)}>
-            <Download size={15} />
-            Excel
+          <button className="btn-press inline-flex items-center gap-2 border border-border bg-white px-4 py-2 text-xs font-bold uppercase tracking-wider text-ink hover:border-brand hover:text-brand transition-all rounded-xl shadow-xs" type="button" onClick={() => exportActivitiesToExcel(scopedRecords)}>
+            <Download size={14} className="text-brand" />
+            ⬇ Export Excel
           </button>
-          <button className="btn-press inline-flex items-center gap-2 border border-border bg-white px-4 py-2 text-sm font-semibold text-ink hover:border-brand hover:text-brand transition-all active:bg-brand-light/45" type="button" onClick={() => exportSummaryToPdf(summary, scopedRecords, view)}>
-            <FileText size={15} />
-            PDF
+          <button className="btn-press inline-flex items-center gap-2 border border-border bg-white px-4 py-2 text-xs font-bold uppercase tracking-wider text-ink hover:border-brand hover:text-brand transition-all rounded-xl shadow-xs" type="button" onClick={() => exportSummaryToPdf(summary, scopedRecords, view)}>
+            <FileText size={14} className="text-brand" />
+            📄 Export PDF
           </button>
           {!recordsOnly && (
-            <button className="btn-press inline-flex items-center gap-2 border border-brand bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-ink transition-all" type="button" onClick={() => setShareOpen(true)}>
-              <ImageIcon size={15} />
-              Share impact
+            <button className="btn-press inline-flex items-center gap-2 border border-brand bg-brand px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-ink transition-all rounded-xl shadow-md shadow-brand/20" type="button" onClick={() => setShareOpen(true)}>
+              <ImageIcon size={14} />
+              🔗 Share Report
             </button>
           )}
         </div>
@@ -202,14 +339,13 @@ export function DashboardClient({ recordsOnly = false }: { recordsOnly?: boolean
 
       <FilterBar filters={filters} options={options} onChange={setFilters} />
 
-      {error && <div className="border border-clay bg-brand-light p-3 text-sm font-bold text-clay">{error}</div>}
-      {loading && <div className="border border-border bg-white p-4 text-sm font-semibold text-mist">Loading live activity data...</div>}
+      {error && <div className="border border-clay bg-brand-light p-3 text-sm font-bold text-clay rounded-xl">{error}</div>}
+      {loading && <div className="border border-border bg-white p-4 text-xs font-bold text-mist rounded-xl">Loading live activity analytics...</div>}
 
       {!recordsOnly && (
         <>
-          {/* Hierarchical KPI Grid — crossfades on tab switch */}
+          {/* Animated KPI cards */}
           <div key={`kpi-${view}`} className="grid gap-4 animate-fade-in">
-            {/* Primary Grid: Hero (span 2) and Secondary Cards */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 font-display">
               <div className="sm:col-span-2">
                 <StatCard
@@ -252,71 +388,144 @@ export function DashboardClient({ recordsOnly = false }: { recordsOnly?: boolean
             </div>
           </div>
 
-          <section className="grid gap-4 xl:grid-cols-2">
-            <Panel title={view === "intern" ? "Top Intern Contributors" : "Top Volunteer Contributors"}>
+          {/* Redesigned Chart Sections with Gaps and Rounded Borders */}
+          <div className="grid gap-6 lg:grid-cols-2 font-display">
+            <Panel title={view === "intern" ? "🥇 Top Intern Contributors" : "🥇 Top Volunteer Contributors"}>
               <ContributorChart data={contributorData} animKey={animKey} />
             </Panel>
-            <Panel title="Activities by Type">
+            <Panel title="📊 Activities by Category Type">
               <ActivityTypeChart data={typeData} />
             </Panel>
-            <Panel title={view === "intern" ? "Monthly Internship Hours" : "Monthly Volunteer Hours"}>
+            <Panel title={view === "intern" ? "⏰ Monthly Internship Hours" : "⏰ Monthly Volunteer Hours"}>
               <div className="flex justify-between items-center mb-3">
                 <GranularityToggle value={granularity} onChange={setGranularity} />
               </div>
               <HoursChart data={trendData} />
             </Panel>
-            <Panel title={view === "intern" ? "Internship Trend" : "Volunteer Trend"}>
+            <Panel title={view === "intern" ? "📈 Internship Trend" : "📈 Volunteer Trend"}>
               <ActivityTrendChart data={trendData} label="Activity Count" />
             </Panel>
             {view === "overall" && (
-              <div className="xl:col-span-2">
-                <Panel title="Activities Overseen by Staff">
+              <div className="lg:col-span-2">
+                <Panel title="👥 Activities Overseen by Staff">
                   <ContributorChart data={staffOverseenData} animKey={animKey} unit="activities" />
                 </Panel>
               </div>
             )}
-          </section>
+          </div>
+
+          {/* Quick Insights + Activity Heatmap panel */}
+          <div className="grid gap-6 md:grid-cols-12 font-display">
+            <div className="md:col-span-5">
+              <article className="rounded-2xl border border-border bg-white p-6 shadow-sm min-h-[250px] text-left">
+                <h3 className="text-xs font-black uppercase tracking-wider text-brand flex items-center gap-1.5 border-b border-border/60 pb-3 mb-4">
+                  <span>📌</span> Quick Insights
+                </h3>
+                <ul className="flex flex-col gap-3 text-xs text-ink font-semibold">
+                  <li className="flex justify-between items-center">
+                    <span className="text-mist">Top contributor:</span>
+                    <strong className="text-brand">{topVolunteer}</strong>
+                  </li>
+                  <li className="flex justify-between items-center">
+                    <span className="text-mist">Most active programme:</span>
+                    <strong>{mostActiveProgramme}</strong>
+                  </li>
+                  <li className="flex justify-between items-center">
+                    <span className="text-mist">Total beneficiaries:</span>
+                    <strong className="text-brand">{summary.beneficiariesImpacted.toLocaleString("en-IN")}</strong>
+                  </li>
+                  <li className="flex justify-between items-center">
+                    <span className="text-mist">Avg hours per activity:</span>
+                    <strong>{avgHours} hrs</strong>
+                  </li>
+                  <li className="flex justify-between items-center">
+                    <span className="text-mist">Most active staff:</span>
+                    <strong className="text-brand">{mostActiveStaff}</strong>
+                  </li>
+                </ul>
+              </article>
+            </div>
+            <div className="md:col-span-7">
+              <article className="rounded-2xl border border-border bg-white p-6 shadow-sm min-h-[250px] text-left">
+                <h3 className="text-xs font-black uppercase tracking-wider text-brand flex items-center gap-1.5 border-b border-border/60 pb-3 mb-4">
+                  <span>📅</span> Activity Heatmap (Last 30 Days)
+                </h3>
+                <div className="grid grid-cols-6 sm:grid-cols-10 gap-2">
+                  {last30Days.map((day) => {
+                    let levelClass = "bg-paper border-border/40 hover:border-mist";
+                    if (day.count === 1) levelClass = "bg-brand/10 border-brand/20 hover:bg-brand/25";
+                    if (day.count === 2) levelClass = "bg-brand/35 border-brand/40 hover:bg-brand/50";
+                    if (day.count >= 3) levelClass = "bg-brand text-white hover:bg-ink";
+                    return (
+                      <div
+                        key={day.dateStr}
+                        className={`h-9 rounded-lg border flex flex-col justify-center items-center cursor-default transition-all ${levelClass}`}
+                        title={`${day.formatted}: ${day.count} activities`}
+                      >
+                        <span className="text-[9px] font-black">{day.formatted.split(" ")[0]}</span>
+                        <span className="text-[8px] font-bold opacity-80">{day.formatted.split(" ")[1]}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-4 flex justify-between items-center text-[10px] text-mist font-bold uppercase tracking-wide">
+                  <span>Less active</span>
+                  <div className="flex gap-1.5 items-center">
+                    <span className="w-2.5 h-2.5 rounded bg-paper border border-border inline-block" />
+                    <span className="w-2.5 h-2.5 rounded bg-brand/10 inline-block" />
+                    <span className="w-2.5 h-2.5 rounded bg-brand/35 inline-block" />
+                    <span className="w-2.5 h-2.5 rounded bg-brand inline-block" />
+                  </div>
+                  <span>More active</span>
+                </div>
+              </article>
+            </div>
+          </div>
         </>
       )}
 
+      {/* Submitted Activities List */}
       <section className="grid gap-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-display font-bold tracking-tight">Submitted Activities</h2>
-          <p className="text-sm font-semibold text-mist">{scopedRecords.length.toLocaleString("en-IN")} records</p>
+        <div className="flex items-center justify-between border-b border-border/65 pb-2">
+          <h2 className="text-xs font-black uppercase tracking-widest text-brand flex items-center gap-1.5">
+            <span>📋</span> Submitted Activities Log
+          </h2>
+          <p className="text-xs font-extrabold text-mist">{scopedRecords.length.toLocaleString("en-IN")} records found</p>
         </div>
         <RecordsTable records={scopedRecords} />
       </section>
 
+      {/* Share Snapshot Dialog Panel */}
       {shareOpen && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4">
-          <div className="max-h-[92vh] w-full max-w-3xl overflow-auto border border-border bg-paper p-5 shadow-soft">
-            <div className="mb-4 flex items-start justify-between gap-4">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="max-h-[92vh] w-full max-w-3xl overflow-auto border border-border bg-paper p-6 rounded-2xl shadow-2xl">
+            <div className="mb-4 flex items-start justify-between gap-4 border-b border-border/60 pb-3">
               <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-brand">Shareable Impact Card</p>
-                <h2 className="mt-1 text-2xl font-display font-bold tracking-tight text-ink">Create a PNG snapshot</h2>
+                <p className="text-xs font-black uppercase tracking-widest text-brand">Shareable Impact Card</p>
+                <h2 className="mt-1 text-xl font-display font-black tracking-tight text-ink">Create a PNG snapshot</h2>
               </div>
-              <button className="rounded border border-border bg-white p-2 text-ink hover:border-brand hover:text-brand" type="button" onClick={() => setShareOpen(false)} aria-label="Close share impact panel">
+              <button className="rounded-lg border border-border bg-white p-2 text-ink hover:border-brand hover:text-brand hover:shadow-xs transition-all" type="button" onClick={() => setShareOpen(false)} aria-label="Close share impact panel">
                 <X size={18} />
               </button>
             </div>
 
             <div className="mb-5 grid gap-3 md:grid-cols-[1fr_auto_auto]">
-              <label className="grid gap-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-mist">Period</span>
-                <select className="h-10 border border-border bg-white px-3 text-sm" value={sharePeriod} onChange={(event) => setSharePeriod(event.target.value as SharePeriod)}>
+              <label className="grid gap-1 text-left">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-mist">Period</span>
+                <select className="h-9 border border-border bg-white px-3 text-xs rounded-lg focus:border-brand focus:outline-none" value={sharePeriod} onChange={(event) => setSharePeriod(event.target.value as SharePeriod)}>
                   <option value="month">This month</option>
                   <option value="quarter">This quarter</option>
                   <option value="year">This year</option>
                   <option value="custom">Custom range</option>
                 </select>
               </label>
-              <label className="grid gap-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-mist">From</span>
-                <input className="h-10 border border-border bg-white px-3 text-sm disabled:bg-paper" type="date" disabled={sharePeriod !== "custom"} value={customRange.from} onChange={(event) => setCustomRange((range) => ({ ...range, from: event.target.value }))} />
+              <label className="grid gap-1 text-left">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-mist">From</span>
+                <input className="h-9 border border-border bg-white px-3 text-xs rounded-lg focus:border-brand focus:outline-none disabled:bg-paper" type="date" disabled={sharePeriod !== "custom"} value={customRange.from} onChange={(event) => setCustomRange((range) => ({ ...range, from: event.target.value }))} />
               </label>
-              <label className="grid gap-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-mist">To</span>
-                <input className="h-10 border border-border bg-white px-3 text-sm disabled:bg-paper" type="date" disabled={sharePeriod !== "custom"} value={customRange.to} onChange={(event) => setCustomRange((range) => ({ ...range, to: event.target.value }))} />
+              <label className="grid gap-1 text-left">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-mist">To</span>
+                <input className="h-9 border border-border bg-white px-3 text-xs rounded-lg focus:border-brand focus:outline-none disabled:bg-paper" type="date" disabled={sharePeriod !== "custom"} value={customRange.to} onChange={(event) => setCustomRange((range) => ({ ...range, to: event.target.value }))} />
               </label>
             </div>
 
@@ -414,8 +623,8 @@ function slugify(value: string) {
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <article className="rounded-none border border-border bg-white p-5">
-      <h2 className="mb-4 text-lg font-display font-bold text-ink uppercase tracking-wide">{title}</h2>
+    <article className="rounded-2xl border border-border bg-white p-6 shadow-sm text-left">
+      <h2 className="mb-4 text-xs font-black text-brand uppercase tracking-widest border-b border-border/60 pb-3">{title}</h2>
       {children}
     </article>
   );
@@ -423,15 +632,15 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 
 function GranularityToggle({ value, onChange }: { value: Granularity; onChange: (value: Granularity) => void }) {
   return (
-    <div className="no-print inline-flex border border-border bg-paper p-1 gap-1 font-display">
+    <div className="no-print inline-flex border border-border bg-paper p-1 gap-1 font-display rounded-lg">
       {(["month", "year"] as Granularity[]).map((option) => {
         const isActive = value === option;
         return (
           <button
             key={option}
-            className={`px-3 py-1 text-xs font-bold uppercase tracking-wider transition-colors border ${
+            className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors border rounded-md ${
               isActive
-                ? "bg-white border-border text-brand font-bold shadow-sm"
+                ? "bg-white border-border text-brand font-bold shadow-xs"
                 : "bg-transparent border-transparent text-mist hover:text-ink"
             }`}
             type="button"
