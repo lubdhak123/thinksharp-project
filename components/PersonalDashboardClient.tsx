@@ -17,6 +17,7 @@ import BeneficiaryTrendChart from "./dashboard/BeneficiaryTrendChart";
 import AchievementGrid from "./dashboard/AchievementGrid";
 import RecentTimeline from "./dashboard/RecentTimeline";
 import ProfileSummaryCard from "./dashboard/ProfileSummaryCard";
+import ReuseActivity from "./dashboard/ReuseActivity";
 
 type PersonalDashboardClientProps = {
   user: CurrentUser;
@@ -224,6 +225,8 @@ export function PersonalDashboardClient({ user, role }: PersonalDashboardClientP
             </div>
 
           </div>
+
+          <ReuseActivity activities={activities} memberStatus={currentStatus} />
 
           {/* Activities History Section / Table */}
           <section className="border border-border bg-white p-5 rounded-2xl">

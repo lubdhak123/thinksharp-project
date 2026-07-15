@@ -214,8 +214,8 @@ export function ActivityForm({ repeatId }: { repeatId?: string }) {
             organisation: record.organisation ?? "",
             programme_name: record.programme_name ?? "",
             project_type: normalizeProjectType(record.project_type),
-            num_volunteers: 0,
-            volunteering_hours: record.volunteering_hours ?? (Number(record.individual_hours ?? 0) + Number(record.group_hours ?? 0)),
+            num_volunteers: 1,
+            volunteering_hours: 0,
             beneficiaries_impacted: 0,
             trees_planted: 0,
           });
@@ -423,11 +423,20 @@ export function ActivityForm({ repeatId }: { repeatId?: string }) {
       )}
 
       {repeatSource && (
-        <div className="border border-brand bg-brand-light p-4 text-sm font-semibold text-ink">
-          Repeating {repeatSource.entry_type === "intern" ? repeatSource.milestone : repeatSource.programme_name} from {repeatSource.activity_date} - update the date and numbers below.{" "}
-          <Link className="font-bold text-brand underline underline-offset-2" href="/submit" onClick={handleClear}>
-            Start blank instead
-          </Link>
+        <div className="border-l-4 border-brand bg-brand-light p-4 text-xs font-semibold text-ink flex flex-col gap-2 font-display">
+          <div>
+            <p className="font-bold text-brand uppercase tracking-wider text-[10px]">Using a previous activity as a template.</p>
+            <p className="text-mist mt-1 leading-relaxed">Please review the information and update the date and activity numbers before submitting.</p>
+          </div>
+          <div>
+            <button
+              type="button"
+              onClick={handleClear}
+              className="text-brand font-bold underline hover:text-ink text-[11px]"
+            >
+              Clear Template
+            </button>
+          </div>
         </div>
       )}
 
