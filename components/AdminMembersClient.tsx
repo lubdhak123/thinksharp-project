@@ -9,10 +9,15 @@ import type { Activity, Member } from "@/lib/types";
 type RoleFilter = "all" | "volunteer" | "intern";
 type StatusFilter = "all" | "Active" | "Completed" | "Suspended";
 
+const DEFAULT_CONTRIBUTION_GOAL = 100;
+
 type MemberRow = Member & {
   hours: number;
   activities: number;
   completed: boolean;
+  trees: number;
+  beneficiaries: number;
+  deliverables: number;
 };
 
 export function AdminMembersClient() {
@@ -67,11 +72,18 @@ export function AdminMembersClient() {
         return normalize(activity.volunteer_name) === normalize(member.name);
       });
 
+      const totalTrees = memberActivities.reduce((t, a) => t + Number(a.trees_planted ?? 0), 0);
+      const totalBens = memberActivities.reduce((t, a) => t + Number(a.beneficiaries_impacted ?? 0), 0);
+      const totalDelivs = memberActivities.reduce((t, a) => t + Number(a.deliverables_completed ?? 0), 0);
+
       return {
         ...member,
         hours: memberActivities.reduce((total, activity) => total + getTotalHours(activity), 0),
         activities: memberActivities.length,
         completed: member.status === "Completed",
+        trees: totalTrees,
+        beneficiaries: totalBens,
+        deliverables: totalDelivs,
       };
     });
   }, [activities, members]);
@@ -256,7 +268,7 @@ export function AdminMembersClient() {
       </section>
 
       <section className="overflow-auto border border-border bg-white">
-        <table className="w-full min-w-[1040px] border-collapse text-left text-sm">
+        <table className="w-full min-w-[1140px] border-collapse text-left text-sm">
           <thead>
             <tr className="border-b-2 border-border bg-paper/60 text-[11px] uppercase tracking-wider text-mist">
               <th className="p-4">TSF ID</th>
@@ -267,6 +279,7 @@ export function AdminMembersClient() {
               <th className="p-4">End Date</th>
               <th className="p-4">Hours</th>
               <th className="p-4">Activities</th>
+              <th className="p-4">Contribution Progress</th>
               <th className="p-4">Completed</th>
               <th className="p-4">Actions</th>
             </tr>
@@ -274,11 +287,11 @@ export function AdminMembersClient() {
           <tbody>
             {loading ? (
               <tr>
-                <td className="p-6 text-center font-bold text-mist" colSpan={10}>Loading members...</td>
+                <td className="p-6 text-center font-bold text-mist" colSpan={11}>Loading members...</td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td className="p-6 text-center font-bold text-mist" colSpan={10}>No matching members found.</td>
+                <td className="p-6 text-center font-bold text-mist" colSpan={11}>No matching members found.</td>
               </tr>
             ) : (
               filtered.map((member) => (
@@ -294,6 +307,41 @@ export function AdminMembersClient() {
                   <td className="p-4">{formatDate(member.expected_end_date)}</td>
                   <td className="p-4 font-bold text-ink">{member.hours.toLocaleString("en-IN")}</td>
                   <td className="p-4 font-bold text-ink">{member.activities.toLocaleString("en-IN")}</td>
+                  <td className="p-4 font-display">
+                    {/* Tooltip Wrapper */}
+                    <div className="group/progress relative cursor-pointer flex items-center gap-2">
+                      {/* Tooltip Content */}
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/progress:block bg-[#161616] text-white p-3 rounded-lg text-[10px] whitespace-nowrap shadow-xl border border-white/15 z-30 leading-normal pointer-events-none text-left">
+                        <p className="font-bold text-[11px] mb-1.5 text-brand uppercase tracking-wider">Outreach Stats</p>
+                        <div className="grid gap-0.5">
+                          <p>⏰ Hours Logged: <strong>{member.hours}h</strong></p>
+                          <p>📊 Activities Logged: <strong>{member.activities}</strong></p>
+                          <p>👥 Beneficiaries: <strong>{member.beneficiaries}</strong></p>
+                          {member.role === "volunteer" ? (
+                            <p>🌳 Trees Planted: <strong>{member.trees}</strong></p>
+                          ) : (
+                            <p>📚 Deliverables: <strong>{member.deliverables}</strong></p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Bar & Percentage */}
+                      <span className="font-mono font-bold text-xs text-ink">{Math.min(Math.round((member.hours / DEFAULT_CONTRIBUTION_GOAL) * 100), 100)}%</span>
+                      
+                      <div className="w-14 sm:w-20 h-2 bg-paper border border-border rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-1000 ease-out ${
+                            Math.min(Math.round((member.hours / DEFAULT_CONTRIBUTION_GOAL) * 100), 100) >= 80 ? "bg-[#2ecc71]" :
+                            Math.min(Math.round((member.hours / DEFAULT_CONTRIBUTION_GOAL) * 100), 100) >= 50 ? "bg-[#f1c40f]" :
+                            Math.min(Math.round((member.hours / DEFAULT_CONTRIBUTION_GOAL) * 100), 100) >= 20 ? "bg-[#e67e22]" : "bg-[#e74c3c]"
+                          }`}
+                          style={{ width: `${Math.min(Math.round((member.hours / DEFAULT_CONTRIBUTION_GOAL) * 100), 100)}%` }}
+                        />
+                      </div>
+
+                      <span className="text-[10px] text-mist font-semibold shrink-0">{member.hours}/{DEFAULT_CONTRIBUTION_GOAL}h</span>
+                    </div>
+                  </td>
                   <td className="p-4">{member.completed ? "Yes" : "No"}</td>
                   <td className="p-4">
                     <div className="flex flex-wrap gap-2">
@@ -364,11 +412,20 @@ export function AdminMembersClient() {
                 {confirmingAction.type === "Reactivate" && "Reactivate Member?"}
               </h3>
             </div>
-            <p className="text-sm text-mist leading-relaxed mb-6">
-              {confirmingAction.type === "Complete" && "Mark Member Completed? This will lock their profile and generate a certificate of completion."}
+            <div className="text-sm text-mist leading-relaxed mb-6">
+              {confirmingAction.type === "Complete" && (
+                confirmingAction.member.hours < DEFAULT_CONTRIBUTION_GOAL ? (
+                  <div className="bg-red-50 border border-red-100 text-red-700 p-3 rounded-lg flex flex-col gap-1 font-semibold text-xs leading-normal">
+                    <p className="font-bold">⚠️ Hour Threshold Warning</p>
+                    <p>This member has completed {confirmingAction.member.hours} of the recommended {DEFAULT_CONTRIBUTION_GOAL} contribution hours. Do you still want to mark them as completed?</p>
+                  </div>
+                ) : (
+                  "Mark Member Completed? This will lock their profile and generate a certificate of completion."
+                )
+              )}
               {confirmingAction.type === "Suspend" && "Suspend Member? This will immediately prevent the member from accessing their dashboard and submitting activities."}
               {confirmingAction.type === "Reactivate" && "Reactivate Member? This will restore their dashboard access and allow them to log activities."}
-            </p>
+            </div>
             <div className="flex justify-end gap-3">
               <button
                 type="button"
