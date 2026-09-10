@@ -31,6 +31,7 @@ export function HeaderNav() {
 
   if (!user) {
     links.push({ href: "/volunteer-apply", label: "Apply" });
+    links.push({ href: "/public-report", label: "Public Report" });
   } else {
     // Logged in
     links.push({ href: "/dashboard", label: "Dashboard" });
@@ -40,6 +41,7 @@ export function HeaderNav() {
       links.push({ href: "/admin", label: "Admin" });
       links.push({ href: "/admin/applications", label: "Applications" });
       links.push({ href: "/admin/members", label: "Members" });
+      links.push({ href: "/public-report", label: "Public Report" });
     } else {
       if (memberStatus === "Active") {
         links.push({ href: "/submit", label: "Submit Activity" });

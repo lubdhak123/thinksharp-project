@@ -24,10 +24,11 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { applicationStatuses, type ApplicationStatus } from "@/lib/constants";
 import { fetchApplications } from "@/lib/applications";
-import { fetchActivities, getTotalHours } from "@/lib/queries";
+import { fetchActivities, getTotalHours, updateActivityStatus } from "@/lib/queries";
 import { fetchMembers, updateMemberStatus } from "@/lib/members";
 import type { Application, Activity as ActivityType, Member } from "@/lib/types";
 import { StatCard } from "@/components/StatCard";
+import { RecordsTable } from "@/components/RecordsTable";
 
 type AdminTab = "dashboard" | "applications" | "records" | "analytics" | "recent";
 
@@ -129,6 +130,15 @@ export function AdminDashboardClient() {
       setError(e instanceof Error ? e.message : "Failed to reactivate member.");
     } finally {
       setRereactivatingId(null);
+    }
+  }
+
+  async function handleUpdateActivityStatus(activityId: string, status: "Approved" | "Rejected") {
+    try {
+      await updateActivityStatus(activityId, status);
+      await loadActivities();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to update activity status.");
     }
   }
 
@@ -361,9 +371,22 @@ export function AdminDashboardClient() {
                           <h4 className="font-bold text-ink text-xs">{act.volunteer_name}</h4>
                           <p className="text-[10px] text-mist mt-0.5 font-bold uppercase">{act.programme_name || act.milestone}</p>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right flex flex-col items-end gap-1">
                           <span className="text-[11px] font-black text-brand tabular-nums">{getTotalHours(act)} hrs</span>
-                          <button onClick={() => setActiveTab("records")} className="text-[10px] font-black text-brand hover:underline mt-1 block">Review Activity →</button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleUpdateActivityStatus(act.id, "Approved")}
+                              className="px-2 py-0.5 bg-[#167241] text-white text-[9px] font-black uppercase rounded hover:bg-ink transition-colors shadow-xs"
+                            >
+                              ✓ Approve
+                            </button>
+                            <button
+                              onClick={() => handleUpdateActivityStatus(act.id, "Rejected")}
+                              className="px-2 py-0.5 bg-rose-600 text-white text-[9px] font-black uppercase rounded hover:bg-ink transition-colors shadow-xs"
+                            >
+                              ✕ Reject
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))
@@ -593,7 +616,7 @@ export function AdminDashboardClient() {
 
       {/* ── Tab: Records ── */}
       {activeTab === "records" && (
-        <RecordsTab activities={activities} loading={loadingActs} />
+        <RecordsTab activities={activities} loading={loadingActs} onStatusUpdate={handleUpdateActivityStatus} />
       )}
 
       {/* ── Tab: Analytics ── */}
@@ -777,77 +800,21 @@ function ApplicationsTab({
 function RecordsTab({
   activities,
   loading,
+  onStatusUpdate
 }: {
   activities: ActivityType[];
   loading: boolean;
+  onStatusUpdate: (id: string, status: "Approved" | "Rejected") => Promise<void>;
 }) {
   return (
     <section className="grid gap-4 animate-fade-in" role="tabpanel">
-      <div className="overflow-hidden border border-border bg-white rounded-2xl shadow-soft">
-        <div className="overflow-auto">
-          <table className="w-full min-w-[860px] border-collapse text-left text-xs">
-            <thead>
-              <tr className="border-b border-border bg-paper/60 text-[10px] uppercase tracking-widest text-mist font-black">
-                <th className="p-4 pl-5">Member</th>
-                <th className="p-4">Type</th>
-                <th className="p-4">Date</th>
-                <th className="p-4">Activity Name</th>
-                <th className="p-4">Location</th>
-                <th className="p-4">Hours Logged</th>
-                <th className="p-4 pr-5">Beneficiaries</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td className="p-8 text-center text-xs font-bold text-mist font-display" colSpan={7}>
-                    Loading activity records…
-                  </td>
-                </tr>
-              ) : activities.length === 0 ? (
-                <tr>
-                  <td className="p-8 text-center text-xs font-bold text-mist" colSpan={7}>
-                    No activity logs recorded.
-                  </td>
-                </tr>
-              ) : (
-                activities.map((a, idx) => (
-                  <tr
-                    key={a.id}
-                    className={`border-b border-border transition-all duration-150 last:border-0 hover:bg-paper/40 ${
-                      idx % 2 === 0 ? "bg-white" : "bg-paper/10"
-                    }`}
-                  >
-                    <td className="p-4 pl-5 font-bold text-ink">{a.volunteer_name}</td>
-                    <td className="p-4">
-                      <span
-                        className={`inline-block px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded ${
-                          a.entry_type === "volunteer"
-                            ? "bg-brand-light text-brand border border-brand/20"
-                            : "bg-paper text-ink border border-border/80"
-                        }`}
-                      >
-                        {a.entry_type}
-                      </span>
-                    </td>
-                    <td className="p-4 text-mist font-semibold">{a.activity_date}</td>
-                    <td className="p-4 text-ink font-semibold">
-                      {a.project_type ?? a.intern_work_type ?? "—"}
-                    </td>
-                    <td className="p-4 text-mist font-semibold">{a.location ?? "—"}</td>
-                    <td className="p-4 font-black text-ink tabular-nums">
-                      {a.volunteering_hours ?? a.internship_hours ?? "—"} hrs
-                    </td>
-                    <td className="p-4 font-black text-brand tabular-nums pr-5">
-                      ❤️ {a.beneficiaries_impacted ?? "—"}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {loading ? (
+        <div className="border border-border bg-white p-8 text-center text-xs font-bold text-mist font-display rounded-2xl">
+          Loading activity records…
         </div>
-      </div>
+      ) : (
+        <RecordsTable records={activities} onStatusUpdate={onStatusUpdate} />
+      )}
     </section>
   );
 }

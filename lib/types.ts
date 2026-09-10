@@ -63,6 +63,7 @@ export type Filters = {
   from?: string;
   to?: string;
   staff?: string;
+  status?: "Submitted" | "Approved" | "Rejected" | "all";
 };
 
 export type Summary = {

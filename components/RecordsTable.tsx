@@ -3,7 +3,13 @@ import { Copy, User, Calendar, MapPin, Clock, Heart, ShieldCheck } from "lucide-
 import { getTotalHours } from "@/lib/queries";
 import type { Activity } from "@/lib/types";
 
-export function RecordsTable({ records }: { records: Activity[] }) {
+export function RecordsTable({
+  records,
+  onStatusUpdate
+}: {
+  records: Activity[];
+  onStatusUpdate?: (id: string, status: "Approved" | "Rejected") => Promise<void> | void;
+}) {
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-soft">
       <div className="overflow-auto">
@@ -89,10 +95,28 @@ export function RecordsTable({ records }: { records: Activity[] }) {
                           <ShieldCheck className="w-3.5 h-3.5 text-brand shrink-0" />
                           {record.staff_in_charge ?? "ThinkSharp Staff"}
                         </div>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="text-[9px] text-mist font-medium">By: {record.submitted_by ?? "Self"}</span>
                           {record.status && <StatusBadge status={record.status} />}
                         </div>
+                        {onStatusUpdate && record.status === "Submitted" && (
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <button
+                              type="button"
+                              onClick={() => onStatusUpdate(record.id, "Approved")}
+                              className="px-2 py-0.5 bg-[#167241] text-white text-[9px] font-black uppercase rounded hover:bg-ink transition-colors shadow-xs"
+                            >
+                              ✓ Approve
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onStatusUpdate(record.id, "Rejected")}
+                              className="px-2 py-0.5 bg-rose-600 text-white text-[9px] font-black uppercase rounded hover:bg-ink transition-colors shadow-xs"
+                            >
+                              ✕ Reject
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="p-4 pr-6 text-center">

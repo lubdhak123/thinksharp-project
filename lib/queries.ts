@@ -11,6 +11,9 @@ export async function fetchActivities(filters: Filters = {}) {
 
   let query = supabase.from("activities").select("*").order("activity_date", { ascending: false });
 
+  if (filters.status && filters.status !== "all") {
+    query = query.eq("status", filters.status);
+  }
   if (filters.search) query = query.ilike("volunteer_name", `%${filters.search}%`);
   if (filters.person) query = query.eq("volunteer_name", filters.person);
   if (filters.programme) query = query.eq("programme_name", filters.programme);
@@ -45,10 +48,37 @@ export async function fetchActivityById(id: string) {
 
 export async function insertActivity(activity: ActivityInsert) {
   if (!supabase) {
-    throw new Error("Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+    demoActivities.unshift({
+      ...activity,
+      id: `act-${Date.now()}`,
+      created_at: new Date().toISOString()
+    } as Activity);
+    return;
   }
 
   const { error } = await supabase.from("activities").insert(activity);
+  if (error) throw new Error(error.message);
+}
+
+export async function updateActivityStatus(id: string, status: "Approved" | "Rejected", rejectionReason?: string) {
+  if (!supabase) {
+    const act = demoActivities.find((a) => a.id === id);
+    if (act) {
+      act.status = status;
+      if (rejectionReason) act.rejection_reason = rejectionReason;
+    }
+    return;
+  }
+
+  const { error } = await supabase
+    .from("activities")
+    .update({
+      status,
+      reviewed_at: new Date().toISOString(),
+      ...(rejectionReason ? { rejection_reason: rejectionReason } : {})
+    })
+    .eq("id", id);
+
   if (error) throw new Error(error.message);
 }
 
@@ -56,7 +86,13 @@ export function applyFilters(records: Activity[], filters: Filters) {
   const search = filters.search?.trim().toLowerCase();
 
   return records.filter((record) => {
+    const matchesStatus =
+      !filters.status ||
+      filters.status === "all" ||
+      (record.status ?? "Approved") === filters.status;
+
     return (
+      matchesStatus &&
       (!search || record.volunteer_name.toLowerCase().includes(search)) &&
       (!filters.person || record.volunteer_name === filters.person) &&
       (!filters.programme || record.programme_name === filters.programme || record.milestone === filters.programme) &&
@@ -82,7 +118,6 @@ export function staffOverseen(records: Activity[]): NameValue[] {
     .sort((a, b) => b.value - a.value);
 }
 
-
 export function filterByView(records: Activity[], view: "overall" | "volunteer" | "intern") {
   if (view === "volunteer") return records.filter((record) => record.entry_type === "volunteer");
   if (view === "intern") return records.filter((record) => record.entry_type === "intern");
@@ -94,10 +129,15 @@ export function getTotalHours(record: Activity) {
   return Number(record.volunteering_hours ?? 0);
 }
 
+function onlyApproved(records: Activity[]) {
+  return records.filter((r) => !r.status || r.status === "Approved");
+}
+
 export function summarize(records: Activity[]): Summary {
+  const approvedRecords = onlyApproved(records);
   const activeCutoff = subDays(new Date(), 90).toISOString().slice(0, 10);
-  const volunteers = records.filter((record) => record.entry_type === "volunteer");
-  const interns = records.filter((record) => record.entry_type === "intern");
+  const volunteers = approvedRecords.filter((record) => record.entry_type === "volunteer");
+  const interns = approvedRecords.filter((record) => record.entry_type === "intern");
 
   return {
     totalVolunteers: new Set(volunteers.map((record) => record.volunteer_name)).size,
@@ -106,7 +146,7 @@ export function summarize(records: Activity[]): Summary {
     activeInterns: new Set(interns.filter((record) => record.activity_date >= activeCutoff).map((record) => record.volunteer_name)).size,
     volunteerHours: volunteers.reduce((sum, record) => sum + getTotalHours(record), 0),
     internHours: interns.reduce((sum, record) => sum + Number(record.internship_hours ?? 0), 0),
-    beneficiariesImpacted: records.reduce((sum, record) => sum + Number(record.beneficiaries_impacted ?? 0), 0),
+    beneficiariesImpacted: approvedRecords.reduce((sum, record) => sum + Number(record.beneficiaries_impacted ?? 0), 0),
     activitiesConducted: volunteers.length + interns.reduce((sum, record) => sum + Number(record.deliverables_completed ?? 0), 0),
     volunteerActivitiesCompleted: volunteers.length,
     treesPlanted: volunteers.reduce((sum, record) => sum + Number(record.trees_planted ?? 0), 0),
@@ -116,8 +156,9 @@ export function summarize(records: Activity[]): Summary {
 }
 
 export function topContributors(records: Activity[]): NameValue[] {
+  const approvedRecords = onlyApproved(records);
   return Object.entries(
-    records.reduce<Record<string, number>>((groups, record) => {
+    approvedRecords.reduce<Record<string, number>>((groups, record) => {
       groups[record.volunteer_name] = (groups[record.volunteer_name] ?? 0) + getTotalHours(record);
       return groups;
     }, {})
@@ -128,8 +169,9 @@ export function topContributors(records: Activity[]): NameValue[] {
 }
 
 export function activitiesByType(records: Activity[]): NameValue[] {
+  const approvedRecords = onlyApproved(records);
   return Object.entries(
-    records.reduce<Record<string, number>>((groups, record) => {
+    approvedRecords.reduce<Record<string, number>>((groups, record) => {
       if (record.entry_type === "intern") {
         const key = record.intern_work_type ?? "Other";
         groups[key] = (groups[key] ?? 0) + Number(record.deliverables_completed ?? 0);
@@ -145,7 +187,8 @@ export function activitiesByType(records: Activity[]): NameValue[] {
 }
 
 export function trend(records: Activity[], granularity: Granularity): TrendPoint[] {
-  const groups = records.reduce<Record<string, TrendPoint>>((acc, record) => {
+  const approvedRecords = onlyApproved(records);
+  const groups = approvedRecords.reduce<Record<string, TrendPoint>>((acc, record) => {
     const period = granularity === "month" ? record.activity_date.slice(0, 7) : record.activity_date.slice(0, 4);
     acc[period] ??= { period, hours: 0, count: 0 };
     acc[period].hours += getTotalHours(record);
@@ -157,11 +200,12 @@ export function trend(records: Activity[], granularity: Granularity): TrendPoint
 }
 
 export function impactStats(records: Activity[]): ImpactStats {
+  const approvedRecords = onlyApproved(records);
   return {
-    beneficiariesReached: records.reduce((sum, record) => sum + Number(record.beneficiaries_impacted ?? 0), 0),
-    treesPlanted: records.reduce((sum, record) => sum + Number(record.trees_planted ?? 0), 0),
-    hoursGiven: records.reduce((sum, record) => sum + getTotalHours(record), 0),
-    peopleInvolved: new Set(records.map((record) => record.volunteer_name)).size
+    beneficiariesReached: approvedRecords.reduce((sum, record) => sum + Number(record.beneficiaries_impacted ?? 0), 0),
+    treesPlanted: approvedRecords.reduce((sum, record) => sum + Number(record.trees_planted ?? 0), 0),
+    hoursGiven: approvedRecords.reduce((sum, record) => sum + getTotalHours(record), 0),
+    peopleInvolved: new Set(approvedRecords.map((record) => record.volunteer_name)).size
   };
 }
 

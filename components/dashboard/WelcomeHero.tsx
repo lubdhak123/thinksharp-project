@@ -38,7 +38,7 @@ export default function WelcomeHero({ name, role, status, joinDate, tsfId }: Wel
           </h1>
           
           <p className="mt-2 text-sm text-white/70 italic max-w-xl leading-relaxed">
-            "Thank you for helping ThinkSharp Foundation create measurable impact in education and community development."
+            &quot;Thank you for helping ThinkSharp Foundation create measurable impact in education and community development.&quot;
           </p>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
